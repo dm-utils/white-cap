@@ -1002,9 +1002,10 @@ sources, text keys. Acceptance: A-S1..A-S9.
 ### 6.2 Result of steps b1-b3 (branch `feature/new-fighters`, 2026-11-18)
 
 Built as specified in 4.1-4.5, with these deviations:
-- Sim: the guard bounce and the trap arm timer start counting the tick after activation (activation happens at the end of
-  `_update_ent`); a trap created at tick T has `arm == arm_ticks - 1` after that tick and can fire from tick T +
-  `arm_ticks`. A dash with `damage == 0` and `push == 0` skips its hit loop. `_shot(kind, fallback)` reads the ball table.
+- Sim: the trap timers tick in the activation tick itself (activation happens in `_update_ent`, `_update_traps` runs
+  later in the same tick): a trap created at tick T has `arm == arm_ticks - 1` (14) and `fuse == fuse_ticks - 1` (149)
+  after that tick, is armed from tick T + 14 (0.47 s) and its fuse fires at tick T + 149. The guard bounce timer starts
+  the tick after activation. A dash with `damage == 0` and `push == 0` skips its hit loop. `_shot(kind, fallback)` reads the ball table.
 - Bots: styles for the new animals already existed; `damage_pct` was added per style (below). Threat scan: boomerang
   return leg, traps (armed trigger within 1 tile, or fuse <= 10 and inside the blast), dashes only when they harm (the
   otter slide does not). Ring attacks fire at the nearest foe in range. Ball specials as in 3.7; the defender specials
@@ -1017,6 +1018,8 @@ Built as specified in 4.1-4.5, with these deviations:
   reconciled profile without saving.
 - Online (card #008, ADR 009): relay allowlist of 8, lobby queue per build id (`Match.build_id()`), friends rooms reject a
   mismatch. Deployed to the dev environment on 2026-11-18.
+- Online lobby close (card #012, ADR 010): native Godot loses a message that comes with the close frame, so the relay
+  closes the lobby socket 1 s after `match`; `OnlineClient` drains packets in every state.
 - Tuning (rule +-25 %): puffer `speed` 108 -> 135 (+25 %, Strandbal otherwise left it at 29-36 % wins). Strandbal shot
   table: spines 280 -> 350, star 420 -> 520, puff 700 -> 850, long 460 -> 400, shell 520 -> 430. Bot style `damage_pct`
   (bot-vs-bot only; humans unchanged): crab 115, octopus 170 -> 145, gull (new) 80, puffer 200, otter 140, seal 260,
