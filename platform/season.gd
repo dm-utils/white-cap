@@ -30,7 +30,7 @@ static func add_pearls(profile: Dictionary, earned: int, unix: float) -> Diction
 		return {}
 	var seasons: Dictionary = profile.get("seasons", {})
 	var mine: Dictionary = seasons.get(str(s.id), {})
-	var before := int(mine.get("pearls", 0))
+	var before := Rewards.num(mine.get("pearls"))
 	var after := before + earned
 	mine["pearls"] = after
 	seasons[str(s.id)] = mine
