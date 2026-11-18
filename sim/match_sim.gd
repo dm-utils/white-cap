@@ -11,9 +11,10 @@ const ENT_FIELDS := ["id", "animal_idx", "x", "y", "hp", "max_hp", "radius", "sp
 	"cooldown", "special", "slow", "slow_pct", "dash", "dash_dx", "dash_dy", "calm", "last_hit_by", "last_hit_tick",
 	"kos", "place", "died_tick", "aim", "damage_pct", "human_damage_pct", "is_bot", "goal_x", "goal_y", "next_think", "strafe", "vx", "vy", "guard",
 	"target", "target_until", "next_shot", "reflex_at", "dodge_until", "dodge_dir", "strafe_until", "engaged"]
-const PROJ_FIELDS := ["owner", "x", "y", "dx", "dy", "life", "damage", "radius"]
+const PROJ_FIELDS := ["owner", "x", "y", "dx", "dy", "life", "damage", "radius", "push", "back"]
 const CLOUD_FIELDS := ["owner", "x", "y", "radius", "life", "slow"]
 const DIVE_FIELDS := ["owner", "x", "y", "delay", "radius", "damage"]
+const TRAP_FIELDS := ["owner", "x", "y", "arm", "fuse", "trigger", "radius", "damage"]
 ## Strandbal (phase 14): extra state, hashed and saved only in that mode so normal matches keep their golden traces.
 const BALL_ENT_FIELDS := ["team", "respawn", "goals"]
 const BALL_FIELDS := ["bx", "by", "bvx", "bvy", "btouch", "bprev", "score_0", "score_1", "kickoff", "golden", "end_tick"]
@@ -60,7 +61,7 @@ class Ent:
 	var strafe := 1 # bots: circling side, -1 or +1
 	var vx := 0 # movement in the last tick (lead aim, threat prediction)
 	var vy := 0
-	var guard := 0 # ticks left of a guard special (not used yet)
+	var guard := 0 # ticks left of a guard special (puff, shell)
 	var target := -1 # bots: committed target (entity id)
 	var target_until := 0
 	var next_shot := 0 # bots: earliest tick for the next shot (fire gap)
@@ -84,6 +85,8 @@ class Proj:
 	var life := 0
 	var damage := 0
 	var radius := 0
+	var push := 0 # knockback on hit, milli-tiles
+	var back := 0 # ticks until it reverses (boomerang), 0 = never
 
 
 class Cloud:
@@ -104,6 +107,17 @@ class Dive:
 	var damage := 0
 
 
+class Trap:
+	var owner := 0
+	var x := 0
+	var y := 0
+	var arm := 0 # ticks until it can be triggered
+	var fuse := 0 # ticks until it goes off by itself
+	var trigger := 0
+	var radius := 0
+	var damage := 0
+
+
 var seed_value := 0
 var tick := 0
 var rng: SimRng
@@ -120,6 +134,7 @@ var projs: Array = []
 var snacks: Array = [] # [x, y] pairs
 var clouds: Array = []
 var dives: Array = []
+var traps: Array = []
 var events: Array = [] # cleared every tick: {type, ...}
 
 var rules: Dictionary
@@ -305,6 +320,7 @@ func step(cmds: Array) -> void:
 	_update_projs()
 	_update_clouds()
 	_update_dives()
+	_update_traps()
 	if mode == "ball":
 		_update_ball()
 	_resolve_deaths()
@@ -351,6 +367,10 @@ func _snack_respawn() -> void:
 
 func _update_ent(e: Ent, cmd: Dictionary) -> void:
 	var at: Dictionary = rules.attack
+	if e.guard > 0:
+		e.guard -= 1
+		if e.guard == 0:
+			e.radius = int(animals[e.id].radius)
 	if e.cooldown > 0:
 		e.cooldown -= 1
 	if e.slow > 0:
@@ -373,15 +393,20 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 		var sp: Dictionary = animals[e.id].special
 		if mode == "ball" and not e.dash_hit.has(BALL_MARK) and _touch_ball(e.x, e.y, e.radius):
 			e.dash_hit.append(BALL_MARK)
-			_kick(e.id, e.dash_dx, e.dash_dy, int(rules.ball.shot.dash))
+			_kick(e.id, e.dash_dx, e.dash_dy, _shot(str(sp.kind), "dash"))
+		var hurts := int(sp.damage) > 0 or int(sp.push) > 0
 		for o in ents:
-			if o.alive and _foe(e, o) and not e.dash_hit.has(o.id) and _touch(e.x, e.y, o, e.radius):
+			if hurts and o.alive and _foe(e, o) and not _intangible(o) and not e.dash_hit.has(o.id) and _touch(e.x, e.y, o, e.radius):
 				e.dash_hit.append(o.id)
 				_damage(o, _hit_amount(e, o, int(sp.damage)), e.id)
-				var speed := int(sp.speed)
-				o.x += e.dash_dx * int(sp.push) / speed
-				o.y += e.dash_dy * int(sp.push) / speed
-				_clamp(o)
+				if int(sp.push) > 0 and not _steady(o):
+					var speed := int(sp.speed)
+					o.x += e.dash_dx * int(sp.push) / speed
+					o.y += e.dash_dy * int(sp.push) / speed
+					_clamp(o)
+		if e.dash == 0 and int(sp.get("refill", 0)) == 1: # the slide comes out reloaded
+			e.charges = int(at.charges)
+			e.reload = 0
 	else:
 		var m := int(cmd.get("m", -1))
 		if m >= 0:
@@ -389,6 +414,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			var sp := e.speed * pct / 100
 			if e.slow > 0:
 				sp = sp * e.slow_pct / 100
+			if e.guard > 0:
+				sp = sp * int(animals[e.id].special.get("self_speed_pct", 100)) / 100
 			e.x += Fx.cos_a(m) * sp / Fx.ONE
 			e.y += Fx.sin_a(m) * sp / Fx.ONE
 	_clamp(e)
@@ -396,6 +423,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 	e.vy = e.y - y0
 	if mode == "ball":
 		_dribble(e, int(cmd.get("m", -1)) if e.dash == 0 else -1)
+	if e.guard > 0:
+		_bounce(e)
 
 	# water and recovery
 	var depth := depth_at(e.x, e.y)
@@ -416,7 +445,7 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 
 	# attack
 	var a := int(cmd.get("a", -1))
-	if a >= 0 and e.charges > 0 and e.cooldown == 0:
+	if a >= 0 and e.charges > 0 and e.cooldown == 0 and not (e.guard > 0 and int(animals[e.id].special.get("no_attack", 0)) == 1):
 		e.charges -= 1
 		e.cooldown = int(at.cooldown_ticks)
 		e.calm = 0
@@ -434,6 +463,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			p.life = int(cfg.life)
 			p.damage = int(cfg.damage) # base; scaled on impact
 			p.radius = int(cfg.radius)
+			p.push = int(cfg.get("push", 0))
+			p.back = int(cfg.get("back", 0))
 			projs.append(p)
 		events.append({"type": "attack", "id": e.id, "angle": e.aim})
 
@@ -444,13 +475,13 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 		e.calm = 0
 		e.aim = posmod(s_ang, Fx.ANGLES)
 		var sp: Dictionary = animals[e.id].special
-		match str(sp.kind):
+		match str(sp.get("mech", sp.kind)):
 			"dash":
 				e.dash = int(sp.ticks)
 				e.dash_dx = Fx.cos_a(e.aim) * int(sp.speed) / Fx.ONE
 				e.dash_dy = Fx.sin_a(e.aim) * int(sp.speed) / Fx.ONE
 				e.dash_hit = []
-			"ink":
+			"cloud":
 				var c := Cloud.new()
 				c.owner = e.id
 				c.x = e.x + Fx.cos_a(e.aim) * int(sp.offset) / Fx.ONE
@@ -470,6 +501,30 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 				v.radius = int(sp.radius)
 				v.damage = int(sp.damage)
 				dives.append(v)
+			"guard":
+				e.guard = int(sp.ticks)
+				e.dash_hit = []
+				e.radius = int(animals[e.id].radius) * int(sp.grow_pct) / 100
+			"trap":
+				var mine := 0
+				for tp in traps:
+					if tp.owner == e.id:
+						mine += 1
+				if mine >= int(sp.max): # the owner's oldest goes first
+					for i in traps.size():
+						if traps[i].owner == e.id:
+							traps.remove_at(i)
+							break
+				var tr := Trap.new()
+				tr.owner = e.id
+				tr.x = e.x + Fx.cos_a(e.aim) * int(sp.offset) / Fx.ONE
+				tr.y = e.y + Fx.sin_a(e.aim) * int(sp.offset) / Fx.ONE
+				tr.arm = int(sp.arm_ticks)
+				tr.fuse = int(sp.fuse_ticks)
+				tr.trigger = int(sp.trigger)
+				tr.radius = int(sp.radius)
+				tr.damage = int(sp.damage)
+				traps.append(tr)
 		events.append({"type": "special", "id": e.id, "kind": str(sp.kind), "angle": e.aim})
 
 
@@ -480,17 +535,27 @@ func _update_projs() -> void:
 		p.x += p.dx
 		p.y += p.dy
 		p.life -= 1
+		if p.back > 0:
+			p.back -= 1
+			if p.back == 0:
+				p.dx = -p.dx
+				p.dy = -p.dy
 		var hit := false
 		for e in ents:
-			if e.alive and e.id != p.owner and _foe(ents[p.owner], e) and _touch(p.x, p.y, e, p.radius):
+			if e.alive and e.id != p.owner and _foe(ents[p.owner], e) and not _intangible(e) and _touch(p.x, p.y, e, p.radius):
 				_damage(e, _hit_amount(ents[p.owner], e, p.damage), p.owner)
+				if p.push > 0 and not _steady(e):
+					var d := maxi(1, Fx.dist(p.dx, p.dy))
+					e.x += p.dx * p.push / d
+					e.y += p.dy * p.push / d
+					_clamp(e)
 				var o: Ent = ents[p.owner]
 				o.special = mini(hits, o.special + 1)
 				events.append({"type": "hit", "id": e.id, "by": p.owner, "x": p.x, "y": p.y})
 				hit = true
 				break
 		if not hit and mode == "ball" and _touch_ball(p.x, p.y, p.radius):
-			_kick(p.owner, p.dx, p.dy, int(rules.ball.shot[str(animals[p.owner].attack.kind)]))
+			_kick(p.owner, p.dx, p.dy, _shot(str(animals[p.owner].attack.kind), "long"))
 			hit = true
 		if not hit and p.life > 0:
 			keep.append(p)
@@ -502,7 +567,7 @@ func _update_clouds() -> void:
 	for c in clouds:
 		c.life -= 1
 		for e in ents:
-			if e.alive and e.id != c.owner and _foe(ents[c.owner], e) and _touch(c.x, c.y, e, c.radius):
+			if e.alive and e.id != c.owner and _foe(ents[c.owner], e) and not _intangible(e) and _touch(c.x, c.y, e, c.radius):
 				e.slow = 2
 				e.slow_pct = c.slow
 		if c.life > 0:
@@ -518,7 +583,7 @@ func _update_dives() -> void:
 			keep.append(v)
 			continue
 		for e in ents:
-			if e.alive and e.id != v.owner and _foe(ents[v.owner], e) and _touch(v.x, v.y, e, v.radius):
+			if e.alive and e.id != v.owner and _foe(ents[v.owner], e) and not _intangible(e) and _touch(v.x, v.y, e, v.radius):
 				_damage(e, _hit_amount(ents[v.owner], e, v.damage), v.owner)
 		if mode == "ball" and _touch_ball(v.x, v.y, v.radius):
 			var dx: int = bx - v.x
@@ -530,6 +595,71 @@ func _update_dives() -> void:
 	dives = keep
 
 
+func _update_traps() -> void:
+	var keep: Array = []
+	for t in traps:
+		t.arm = maxi(0, t.arm - 1)
+		t.fuse -= 1
+		var owner: Ent = ents[t.owner]
+		var go: bool = t.fuse <= 0
+		if not go and t.arm == 0:
+			for o in ents:
+				if o.alive and _foe(owner, o) and not _intangible(o) and _touch(t.x, t.y, o, t.trigger):
+					go = true
+					break
+		if not go:
+			keep.append(t)
+			continue
+		for o in ents:
+			if o.alive and _foe(owner, o) and not _intangible(o) and _touch(t.x, t.y, o, t.radius):
+				_damage(o, _hit_amount(owner, o, t.damage), t.owner)
+		if mode == "ball" and _touch_ball(t.x, t.y, t.radius):
+			var dx: int = bx - t.x
+			var dy: int = by - t.y
+			if dx == 0 and dy == 0:
+				dx = 1 if owner.team == 0 else -1
+			_kick(t.owner, dx, dy, _shot("arm", "dive"))
+		events.append({"type": "trap", "id": t.owner, "x": t.x, "y": t.y})
+	traps = keep
+
+
+## Guard bounce: every foe touching a puffed-up e takes the bounce damage and is shoved away, once per guard.
+func _bounce(e: Ent) -> void:
+	var sp: Dictionary = animals[e.id].special
+	if int(sp.get("bounce_push", 0)) <= 0:
+		return
+	for o in ents:
+		if o.alive and _foe(e, o) and not _intangible(o) and not e.dash_hit.has(o.id) and _touch(e.x, e.y, o, e.radius):
+			e.dash_hit.append(o.id)
+			_damage(o, _hit_amount(e, o, int(sp.bounce_damage)), e.id)
+			if not _steady(o):
+				var dx: int = o.x - e.x
+				var dy: int = o.y - e.y
+				if dx == 0 and dy == 0:
+					dx = 1
+				var d := maxi(1, Fx.dist(dx, dy))
+				o.x += dx * int(sp.bounce_push) / d
+				o.y += dy * int(sp.bounce_push) / d
+				_clamp(o)
+	if mode == "ball" and not e.dash_hit.has(BALL_MARK) and _touch_ball(e.x, e.y, e.radius):
+		e.dash_hit.append(BALL_MARK)
+		_kick(e.id, bx - e.x, by - e.y, _shot(str(sp.kind), "dash"))
+
+
+## Strandbal kick speed for an attack or special kind; fallback when the table has no entry.
+func _shot(kind: String, fallback: String) -> int:
+	var shot: Dictionary = rules.ball.shot
+	return int(shot.get(kind, shot[fallback]))
+
+
+func _intangible(e: Ent) -> bool:
+	return e.dash > 0 and int(animals[e.id].special.get("intangible", 0)) == 1
+
+
+func _steady(e: Ent) -> bool:
+	return e.guard > 0 and int(animals[e.id].special.get("steady", 0)) == 1
+
+
 ## Damage an entity deals to victim: bots scale differently against humans (docs/design.md 3.9).
 func _hit_amount(src: Ent, victim: Ent, base: int) -> int:
 	return base * (src.human_damage_pct if victim.is_bot == 0 else src.damage_pct) / 100
@@ -538,6 +668,8 @@ func _hit_amount(src: Ent, victim: Ent, base: int) -> int:
 func _damage(e: Ent, amount: int, by: int) -> void:
 	if not e.alive or amount <= 0:
 		return
+	if e.guard > 0 and by >= 0: # water (by < 0) is not softened: the tide stays the threat
+		amount = amount * int(animals[e.id].special.get("taken_pct", 100)) / 100
 	if mode == "ball" and by >= 0: # Strandbal: hits slow you down more than they wash you away
 		amount = amount * int(rules.ball.damage_pct) / 100
 	e.hp -= amount
@@ -556,6 +688,8 @@ func _resolve_deaths() -> void:
 				e.respawn = int(rules.ball.respawn_ticks)
 				e.died_tick = tick
 				e.dash = 0
+				e.guard = 0
+				e.radius = int(animals[e.id].radius)
 				if e.last_hit_by >= 0 and tick - e.last_hit_tick <= int(rules.knockout_credit_ticks):
 					ents[e.last_hit_by].kos += 1
 				events.append({"type": "ko", "id": e.id, "x": e.x, "y": e.y, "by": e.last_hit_by})
@@ -616,7 +750,7 @@ func _clamp(e: Ent) -> void:
 ## FNV-1a over every piece of state that can affect the future.
 func state_hash() -> int:
 	var h := 2166136261
-	for v in [tick, level, phase_left, sudden, snack_timer, finished, rng.state, ents.size(), projs.size(), snacks.size(), clouds.size(), dives.size()]:
+	for v in [tick, level, phase_left, sudden, snack_timer, finished, rng.state, ents.size(), projs.size(), snacks.size(), clouds.size(), dives.size(), traps.size()]:
 		h = _mix(h, v)
 	for e in ents:
 		for f in ENT_FIELDS:
@@ -634,6 +768,9 @@ func state_hash() -> int:
 	for v in dives:
 		for f in DIVE_FIELDS:
 			h = _mix(h, int(v.get(f)))
+	for t in traps:
+		for f in TRAP_FIELDS:
+			h = _mix(h, int(t.get(f)))
 	if mode == "ball":
 		for f in BALL_FIELDS:
 			h = _mix(h, int(get(f)))
@@ -653,7 +790,7 @@ static func _mix(h: int, v: int) -> int:
 
 func snapshot() -> Dictionary:
 	var out := {"seed": seed_value, "tick": tick, "rng": rng.state, "level": level, "phase_left": phase_left, "sudden": sudden,
-		"snack_timer": snack_timer, "finished": finished, "snacks": snacks.duplicate(true), "ents": [], "projs": [], "clouds": [], "dives": []}
+		"snack_timer": snack_timer, "finished": finished, "snacks": snacks.duplicate(true), "ents": [], "projs": [], "clouds": [], "dives": [], "traps": []}
 	for e in ents:
 		var d := {}
 		for f in ENT_FIELDS:
@@ -663,7 +800,7 @@ func snapshot() -> Dictionary:
 			for f in BALL_ENT_FIELDS:
 				d[f] = e.get(f)
 		out.ents.append(d)
-	for pair in [["projs", projs, PROJ_FIELDS], ["clouds", clouds, CLOUD_FIELDS], ["dives", dives, DIVE_FIELDS]]:
+	for pair in [["projs", projs, PROJ_FIELDS], ["clouds", clouds, CLOUD_FIELDS], ["dives", dives, DIVE_FIELDS], ["traps", traps, TRAP_FIELDS]]:
 		for o in pair[1]:
 			var d := {}
 			for f in pair[2]:
@@ -702,6 +839,7 @@ func restore(s: Dictionary) -> void:
 	projs = _restore_list(s.projs, Proj, PROJ_FIELDS)
 	clouds = _restore_list(s.clouds, Cloud, CLOUD_FIELDS)
 	dives = _restore_list(s.dives, Dive, DIVE_FIELDS)
+	traps = _restore_list(s.traps, Trap, TRAP_FIELDS)
 
 
 static func _restore_list(src: Array, cls, fields: Array) -> Array:
@@ -867,6 +1005,7 @@ func _kickoff() -> void:
 	projs = []
 	clouds = []
 	dives = []
+	traps = []
 	var isl := island_data(str(rules.island))
 	for e in ents:
 		if e.alive:
@@ -874,6 +1013,8 @@ func _kickoff() -> void:
 			e.x = int(sp[0]) * TILE + TILE / 2
 			e.y = int(sp[1]) * TILE + TILE / 2
 			e.dash = 0
+			e.guard = 0
+			e.radius = int(animals[e.id].radius)
 	kickoff = int(rules.ball.kickoff_ticks)
 	events.append({"type": "kickoff"})
 
