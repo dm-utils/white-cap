@@ -61,6 +61,39 @@
       { "type": "triangle", "f0": 988, "f1": 988, "t": 0.11, "dur": 0.12, "attack": 0.003, "curve": 2, "gain": 0.55 },
       { "type": "triangle", "f0": 1175, "f1": 1175, "t": 0.22, "dur": 0.12, "attack": 0.003, "curve": 2, "gain": 0.55 },
       { "type": "triangle", "f0": 1568, "f1": 1568, "t": 0.33, "dur": 0.4, "attack": 0.003, "curve": 1.5, "gain": 0.6, "vib": [6, 0.3] } ] },
+    "prick":       { "note": "puffer attack: a burst of spines", "layers": [
+      { "type": "noise", "f0": 8000, "f1": 5000, "t": 0.0, "dur": 0.03, "attack": 0.001, "curve": 3, "gain": 0.6 },
+      { "type": "triangle", "f0": 3200, "f1": 2400, "t": 0.0, "dur": 0.04, "attack": 0.001, "curve": 3, "gain": 0.5 },
+      { "type": "noise", "f0": 7000, "f1": 4500, "t": 0.035, "dur": 0.03, "attack": 0.001, "curve": 3, "gain": 0.5 },
+      { "type": "triangle", "f0": 3600, "f1": 2800, "t": 0.035, "dur": 0.04, "attack": 0.001, "curve": 3, "gain": 0.4 } ] },
+    "toss":        { "note": "otter attack: a light thwip", "layers": [
+      { "type": "sine", "f0": 500, "f1": 900, "t": 0.0, "dur": 0.09, "attack": 0.004, "curve": 2, "gain": 0.8 },
+      { "type": "noise", "f0": 3000, "f1": 1500, "t": 0.0, "dur": 0.05, "attack": 0.002, "curve": 2, "gain": 0.3 } ] },
+    "squirt":      { "note": "seal attack: a wet water jet", "layers": [
+      { "type": "noise", "f0": 2500, "f1": 1200, "t": 0.0, "dur": 0.16, "attack": 0.01, "curve": 1.5, "gain": 0.7 },
+      { "type": "sine", "f0": 600, "f1": 300, "t": 0.0, "dur": 0.12, "attack": 0.005, "curve": 2, "gain": 0.3 } ] },
+    "poke":        { "note": "hermit attack: a hard tok", "layers": [
+      { "type": "triangle", "f0": 300, "f1": 120, "t": 0.0, "dur": 0.07, "attack": 0.001, "curve": 3, "gain": 0.9 },
+      { "type": "noise", "f0": 4000, "f1": 2000, "t": 0.0, "dur": 0.02, "attack": 0.0005, "curve": 3, "gain": 0.5 } ] },
+    "whirl":       { "note": "starfish attack: a spinning star", "layers": [
+      { "type": "sine", "f0": 700, "f1": 1400, "t": 0.0, "dur": 0.18, "attack": 0.01, "curve": 1.2, "gain": 0.6, "vib": [24, 1.0] },
+      { "type": "noise", "f0": 5000, "f1": 3000, "t": 0.0, "dur": 0.12, "attack": 0.01, "curve": 1.5, "gain": 0.15 } ] },
+    "inflate":     { "note": "puffer special: blowing up", "layers": [
+      { "type": "sine", "f0": 160, "f1": 420, "t": 0.0, "dur": 0.4, "attack": 0.02, "curve": 0.8, "gain": 0.7, "vib": [10, 1.5] },
+      { "type": "noise", "f0": 1200, "f1": 3000, "t": 0.0, "dur": 0.35, "attack": 0.03, "curve": 1.2, "gain": 0.2 } ] },
+    "whoosh":      { "note": "otter special: a long smooth slide", "layers": [
+      { "type": "noise", "f0": 600, "f1": 3000, "t": 0.0, "dur": 0.3, "attack": 0.08, "curve": 1.2, "gain": 0.8 },
+      { "type": "sine", "f0": 200, "f1": 120, "t": 0.0, "dur": 0.25, "attack": 0.02, "curve": 2, "gain": 0.15 } ] },
+    "slap":        { "note": "seal special: a belly slap", "layers": [
+      { "type": "sine", "f0": 160, "f1": 60, "t": 0.0, "dur": 0.12, "attack": 0.002, "curve": 2.5, "gain": 0.9 },
+      { "type": "noise", "f0": 3500, "f1": 800, "t": 0.0, "dur": 0.08, "attack": 0.001, "curve": 3, "gain": 0.7 } ] },
+    "clack":       { "note": "hermit special: the shell closes", "layers": [
+      { "type": "triangle", "f0": 900, "f1": 500, "t": 0.0, "dur": 0.04, "attack": 0.001, "curve": 3, "gain": 0.8 },
+      { "type": "noise", "f0": 6000, "f1": 3000, "t": 0.0, "dur": 0.02, "attack": 0.0005, "curve": 3, "gain": 0.4 },
+      { "type": "triangle", "f0": 700, "f1": 400, "t": 0.06, "dur": 0.05, "attack": 0.001, "curve": 3, "gain": 0.7 } ] },
+    "pop":         { "note": "starfish special: an arm is dropped", "layers": [
+      { "type": "sine", "f0": 1200, "f1": 300, "t": 0.0, "dur": 0.09, "attack": 0.001, "curve": 3, "gain": 0.9 },
+      { "type": "noise", "f0": 5000, "f1": 1500, "t": 0.0, "dur": 0.05, "attack": 0.001, "curve": 3, "gain": 0.4 } ] },
     "tap":         { "note": "UI button", "layers": [
       { "type": "sine", "f0": 1500, "f1": 1300, "t": 0.0, "dur": 0.03, "attack": 0.001, "curve": 2.5, "gain": 0.6 },
       { "type": "noise", "f0": 6000, "f1": 6000, "t": 0.0, "dur": 0.008, "attack": 0.0005, "curve": 2, "gain": 0.2 } ] }

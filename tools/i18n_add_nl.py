@@ -102,6 +102,16 @@ NL = {
     "REPORT_SENT": "Bedankt! We lezen elke melding.",
     "REPORT_SENT_NO_ATTACHMENTS": "Bedankt! Je melding is verstuurd, maar de bijlagen konden niet mee.",
     "REPORT_EMPTY": "Schrijf eerst een paar woorden.",
+    "ATTACK_DESC_SPINES": "stekels die alle kanten op vliegen",
+    "ATTACK_DESC_SHELL": "een gegooide schelp",
+    "ATTACK_DESC_JET": "een waterstraal die terugduwt",
+    "ATTACK_DESC_POKE": "een korte, harde por met de schaar",
+    "ATTACK_DESC_STAR": "een draaiende ster die terugkomt",
+    "SPECIAL_DESC_PUFF": "blaast zich op: groter, taaier, kaatst anderen weg",
+    "SPECIAL_DESC_SLIDE": "een snelle glijpartij waar niets op raakt; daarna weer geladen",
+    "SPECIAL_DESC_BELLY": "een buikschuiver die alles ver wegduwt",
+    "SPECIAL_DESC_SHELL": "kruipt in de schelp: bijna geen schade, niet te duwen, kan niet aanvallen",
+    "SPECIAL_DESC_ARM": "laat een arm achter die ontploft als iemand erop stapt",
 }
 
 path = os.path.join(os.path.dirname(__file__), "..", "i18n", "strings.csv")

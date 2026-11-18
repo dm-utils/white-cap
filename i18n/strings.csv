@@ -228,6 +228,16 @@ ATTACK_DESC_LONG,one fast peck from far away,één snelle pik van ver weg
 SPECIAL_DESC_DASH,a sideways dash that pushes others away,een zijwaartse sprint die anderen wegduwt
 SPECIAL_DESC_INK,an ink cloud that slows everyone inside,een inktwolk die iedereen erin vertraagt
 SPECIAL_DESC_DIVE,a dive onto a spot: a big splash after a moment,een duik op een plek: na een tel een grote plons
+ATTACK_DESC_SPINES,spines that fly out in every direction,stekels die alle kanten op vliegen
+ATTACK_DESC_SHELL,a thrown shell,een gegooide schelp
+ATTACK_DESC_JET,a water jet that pushes back,een waterstraal die terugduwt
+ATTACK_DESC_POKE,"a short, hard poke with the claw","een korte, harde por met de schaar"
+ATTACK_DESC_STAR,a spinning star that comes back,een draaiende ster die terugkomt
+SPECIAL_DESC_PUFF,"puffs up: bigger, tougher, bounces others away","blaast zich op: groter, taaier, kaatst anderen weg"
+SPECIAL_DESC_SLIDE,a fast slide nothing can hit; comes out reloaded,een snelle glijpartij waar niets op raakt; daarna weer geladen
+SPECIAL_DESC_BELLY,a belly slide that shoves everything far away,een buikschuiver die alles ver wegduwt
+SPECIAL_DESC_SHELL,"hides in the shell: almost no damage, can't be pushed, can't attack","kruipt in de schelp: bijna geen schade, niet te duwen, kan niet aanvallen"
+SPECIAL_DESC_ARM,leaves an arm behind that explodes when someone steps on it,laat een arm achter die ontploft als iemand erop stapt
 MENU_ONLINE,Play online,Online spelen
 ONLINE_TITLE,Online,Online
 ONLINE_CONNECTING,Connecting…,Verbinden…
