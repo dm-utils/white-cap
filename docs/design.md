@@ -67,7 +67,7 @@ Key facts the developer must keep intact:
   animal, the replay check and the match fallback.
 - **Tests.** `tests/run_tests.tscn` (headless, CI, 300 s timeout), `tests/balance.tscn` (all-bot balance),
   `tests/ball_balance.tscn`, golden traces in `tests/golden/traces.json`, recorded replays in
-  `tests/golden/replays_windows.json`.
+  `tests/golden/replays_recorded.json` (was `replays_windows.json` before a2).
 
 ---
 
@@ -140,30 +140,34 @@ split into four layers that run in this order every tick:
 {
   "version": 2,
   "levels": {
-    "easy":   { "think_ticks": 12, "reaction_ticks": 12, "aim_error": 260, "lead_pct": 40,  "dodge_pct": 25,
-                "aggression_pct": 55, "keep_charges": 1, "fire_gap_ticks": 14, "special_pct": 50,
-                "tide_lookahead_ticks": 0,   "samples": 10, "look_tiles": 7, "damage_pct": 60, "max_on_target": 2 },
+    "easy":   { "think_ticks": 12, "reaction_ticks": 12, "aim_error": 450, "lead_pct": 20,  "dodge_pct": 25,
+                "aggression_pct": 55, "keep_charges": 1, "fire_gap_ticks": 55, "special_pct": 50,
+                "tide_lookahead_ticks": 0,   "samples": 10, "look_tiles": 7, "damage_pct": 50, "max_on_target": 2 },
     "normal": { "think_ticks": 8,  "reaction_ticks": 7,  "aim_error": 150, "lead_pct": 75,  "dodge_pct": 55,
-                "aggression_pct": 75, "keep_charges": 0, "fire_gap_ticks": 6,  "special_pct": 80,
-                "tide_lookahead_ticks": 75,  "samples": 12, "look_tiles": 8, "damage_pct": 80, "max_on_target": 2 },
-    "hard":   { "think_ticks": 5,  "reaction_ticks": 3,  "aim_error": 70,  "lead_pct": 100, "dodge_pct": 85,
-                "aggression_pct": 90, "keep_charges": 0, "fire_gap_ticks": 0,  "special_pct": 100,
-                "tide_lookahead_ticks": 150, "samples": 14, "look_tiles": 9, "damage_pct": 100, "max_on_target": 3 }
+                "aggression_pct": 75, "keep_charges": 0, "fire_gap_ticks": 40, "special_pct": 50,
+                "tide_lookahead_ticks": 75,  "samples": 12, "look_tiles": 8, "damage_pct": 22, "max_on_target": 2 },
+    "hard":   { "think_ticks": 5,  "reaction_ticks": 3,  "aim_error": 40,  "lead_pct": 100, "dodge_pct": 85,
+                "aggression_pct": 90, "keep_charges": 0, "fire_gap_ticks": 28, "special_pct": 100,
+                "tide_lookahead_ticks": 150, "samples": 14, "look_tiles": 9, "damage_pct": 22, "max_on_target": 3 }
   },
   "styles": {
-    "crab":    { "range_pct": 55, "min_pct": 0,  "flee_hp_pct": 25 },
-    "octopus": { "range_pct": 65, "min_pct": 30, "flee_hp_pct": 30 },
-    "gull":    { "range_pct": 75, "min_pct": 45, "flee_hp_pct": 35 },
+    "crab":    { "range_pct": 55, "min_pct": 0,  "flee_hp_pct": 25, "damage_pct": 115 },
+    "octopus": { "range_pct": 65, "min_pct": 30, "flee_hp_pct": 30, "damage_pct": 170 },
+    "gull":    { "range_pct": 65, "min_pct": 40, "flee_hp_pct": 35 },
     "puffer":  { "range_pct": 50, "min_pct": 0,  "flee_hp_pct": 20 },
     "otter":   { "range_pct": 70, "min_pct": 40, "flee_hp_pct": 40 },
     "seal":    { "range_pct": 60, "min_pct": 0,  "flee_hp_pct": 25 },
     "hermit":  { "range_pct": 55, "min_pct": 0,  "flee_hp_pct": 20 },
     "star":    { "range_pct": 70, "min_pct": 25, "flee_hp_pct": 30 }
   },
+  "default_style": { "range_pct": 60, "min_pct": 0, "flee_hp_pct": 30 },
   "default_level": "easy",
   "names": { "...": "unchanged" }
 }
 ```
+
+Values as tuned in step a2 (measured, see 6.1); the first proposal differed in `aim_error`, `lead_pct`, `fire_gap_ticks`,
+`special_pct`, `damage_pct` and the gull style. Styles of the five new animals are untuned placeholders for b1.
 
 Meaning of the level fields:
 
@@ -182,6 +186,10 @@ Meaning of the level fields:
 | `samples`, `look_tiles` | Goal sampling, as today. |
 | `damage_pct` | Unchanged meaning (bot damage multiplier). Easy rises from 55 to 60 because the old value was tuned for passive bots; tune with the metrics. |
 | `max_on_target` | At most this many bots may hold the same target (spreads fights, prevents ganging up on the player). |
+
+Style field `damage_pct` (optional, default 100): multiplies the level's `damage_pct` for bots of that animal
+(`BotBrain.damage_pct`, used by `Match.create`/`create_online`). Added in a2 as the only balance knob for bots that
+stays in `bots.json`; players are unaffected.
 
 Styles (per animal): `range_pct` preferred distance to the target as % of attack range; `min_pct` back off when the
 target is closer than this %; `flee_hp_pct` disengage below this HP % unless cornered (target within 40 % of range).
@@ -347,6 +355,11 @@ godot --headless --path . res://tests/bot_metrics.tscn -- --matches=200 --level=
   - with `--human=1`: `human_focus_pct` = bot hits on entity 0 / all bot hits; test player's average place.
   - per animal: entries, wins, win % per entry, KOs per entry.
   - `ms_per_1000_ticks`.
+- KOs are "credited" when `by >= 0` and the victim was last hit within `knockout_credit_ticks`; a KO without credit
+  counts as drowning (the sim keeps `last_hit_by` forever, so `by >= 0` alone would hide late drownings).
+- Positions are compared before/after each step by the tool itself (no dependence on `vx/vy`), so it works on the old brain.
+- `--ms_max=<n>` with `--check=1` also fails when `ms_per_1000_ticks` exceeds n. The JSON holds no timing, so equal
+  commands give byte-identical files.
 - Prints a table; `--out` writes JSON; `--check=1` exits 1 when any target in section 7.2 is missed.
 - Works on the old brain too (it only reads state and events), so step a1 can record a baseline.
 
@@ -694,6 +707,57 @@ twice.
    attacks per alive minute >= 10, idle % <= 15, and determinism (same seed twice = same hash).
 Acceptance: section 7.2 targets for crab/octopus/gull on all three levels; ball balance goals unchanged;
 `ms_per_1000_ticks` at most 2x the a1 baseline.
+
+### 6.1 Result of steps a1 and a2 (measured with `tests/bot_metrics.tscn`, seed 1)
+
+All-bot runs, 200 matches per level (`--human=1` columns: 100 matches). Baseline = old brain, a1 measurement
+(commit 13e1d64); new = a2. Wall-clock figures come from a shared machine and vary by 20-30 %.
+
+| Metric | easy old / new | normal old / new | hard old / new |
+|---|---|---|---|
+| attacks per alive minute (median) | 14.6 / 20.4 | 15.8 / 27.6 | 7.9 / 38.9 |
+| hits per attack (single-projectile) | 0.56 / 0.33 | 0.69 / 0.53 | 0.90 / 0.40 |
+| specials per alive minute (median) | 2.30 / 1.91 | 2.20 / 4.89 | 1.73 / 5.61 |
+| special lag (s) | 0.4 / 0.9 | 0.4 / 0.7 | 0.2 / 0.3 |
+| idle % avg (worst bot) | 75.7 (93.9) / 0.0 (0.0) | 74.7 (95.7) / 0.0 (0.1) | 69.3 (94.0) / 0.0 (0.0) |
+| fight KOs % | 100 / 100 | 100 / 100 | 100 / 100 |
+| avoidable drowning % | 0 / 0 | 0 / 0 | 0 / 0 |
+| match duration avg (min) s | 171 (57) / 164 (33) | 63 (26) / 175 (39) | 32 (11) / 152 (30) |
+| human focus % (`--human=1`) | 38.7 / 31.5 | 29.5 / 32.1 | 24.5 / 27.2 |
+| test player average place | 1.00 / 1.20 | 1.80 / 1.15 | 3.14 / 1.72 |
+| `ms_per_1000_ticks` | 152 / 138 | 184 / 170 | 254 / 201 |
+
+Win % per entry (all-bot, 3 animals): easy crab 12.9, gull 22.6, octopus 14.4; normal (400 matches) crab 13.6, gull 23.7,
+octopus 12.9; hard crab 15.7, gull 11.2, octopus 23.1. Ball balance (120 matches, normal): 2.93 goals, 0-0 1 %, blue 55 %,
+animals 48-53 %, within goals (baseline: 3.13 goals, blue 54 %).
+
+Targets of 7.2 met: attack rate, hits per attack, specials, lag, idle, fight KOs, drowning, average duration, cost
+(at most 2x; about 1x). Missed or not comparable:
+- **Shortest match**: 33 s (easy, target 45), 39 s (normal, 40), 30 s (hard, 35). The short matches are brawls in which
+  several same-animal bots (with the octopus/crab damage multiplier) take each other out within one tide phase.
+- **Test player ladder** (normal >= easy + 0.4, hard >= normal + 0.3) is not met: the scripted player deals 100 % damage
+  and wins against bots that deal 22-50 %. Bot-vs-bot duration (7.2) and a strong bot against a 100 % player pull in
+  opposite directions through `damage_pct`; the duration targets were given priority. See open points.
+- Duration in `--human=1` runs is about 30-65 s (the scripted player wins quickly); the 7.2 duration targets are judged on
+  all-bot runs, as the baseline already did.
+- Old balance rule (share of wins 22-45 %, `tests/balance.tscn`): gull is at about 45-47 % on easy/normal, crab and octopus
+  26-30 %. Per-entry win % of the 8-animal rule (10-24 %) holds for all three animals on easy and normal.
+
+Deviations from the design text of 3.3-3.8:
+- `damage_pct` is much lower than proposed (22-50 instead of 60-100): with the proposed attack rates matches lasted
+  20-25 s. Tuned together with `fire_gap_ticks` (the cadence limit; `keep_charges` has no effect once the gap is long
+  enough that charges are always full), `aim_error`, `lead_pct`, `special_pct`.
+- New optional style field `damage_pct` (crab 115, octopus 170): without it the octopus won 2-6 % of the matches (slow on
+  dry ground at 80 % speed, lowest hp) and the crab 5 %.
+- Gull style `range_pct` 65 / `min_pct` 40 (proposed 75 / 45): at 75 % hard bots dodged nearly every long shot (gull 7 % wins).
+- Fire layer fires independent of `engaged` (engaged only steers movement), so `aggression_pct` hardly changes the
+  attack rate.
+- KO credit in the metrics tool uses the credit window (see 3.8).
+- `ball_brain`: dodge overrides the whole move; `_fight` keeps its think-tick cadence but uses lead, fire gap and the
+  full `aggression_pct`. Ball bots deal almost no KOs now (0.1 per match, baseline 3.6) because bot `damage_pct` is low
+  and the ball mode scales damage down again (65 %); goals and sides are unchanged.
+- Replay fixture: `tests/golden/replays_recorded.json` is rewritten by `run_tests -- --update-golden` (same sample as
+  `test_score_check`), so one command re-records both fixtures.
 
 ### Step b1 - fighters: sim, data, bots
 1. Sim mechanics 4.2 (mech, intangible/steady, guard, trap, projectile push/back, ball shot table).
