@@ -810,6 +810,17 @@ func test_unlocks_and_reconcile() -> void:
 	check((neg.unlocked_animals as Array).size() == 5 and not neg.has("avatars"), "negative pearls grant nothing")
 	var fl := Rewards.reconcile({"pearls_total": 150.0})
 	check((fl.unlocked_animals as Array).has("puffer"), "pearls as float 150.0 still grants")
+	# malformed fields count as empty: no script errors, rewards still granted
+	var bad := {"pearls_total": 2500, "looks": null, "badges": "x", "avatars": 5, "unlocked_animals": null}
+	var fixed := Rewards.reconcile(bad)
+	check((fixed.unlocked_animals as Array).has("puffer") and (fixed.badges is Array) and (fixed.avatars is Array), "null/string/number list fields are replaced and granted")
+	check(fixed.looks is Dictionary and (fixed.looks.owned as Array).size() > 0, "looks null is rebuilt with the path looks")
+	var bad2 := Rewards.reconcile({"pearls_total": 2500, "looks": {"owned": "x", "equipped": 3}})
+	check((bad2.looks.owned as Array).size() > 0 and Rewards.equipped_look({"looks": {"owned": "x", "equipped": 3}}, "crab") == "", "looks.owned string and equipped number")
+	var eqp := {"looks": "oops"}
+	Rewards.equip(eqp, "crab", "x")
+	check(eqp.looks is Dictionary and eqp.looks.equipped == {"crab": "x"}, "equip repairs a malformed looks field")
+	check(JSON.stringify(Rewards.reconcile(fixed)) == JSON.stringify(fixed), "repaired profile reconciles idempotently")
 
 	# Platform.load_profile reconciles but saves nothing; save persists it
 	var path := "user://nf_extra_profile.json"
