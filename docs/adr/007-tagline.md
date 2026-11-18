@@ -1,11 +1,11 @@
-# ADR 007 - "Survival of the dryest!" as tagline, Whitecap stays the name
+# ADR 007 - "Survival of the driest!" as tagline, Whitecap stays the name
 
-Date: 2026-11-18. Status: accepted (spelling to be confirmed by the owner).
+Date: 2026-11-18. Status: accepted (spelling "driest" confirmed by the owner, 2026-11-18).
 
 ## Context
 
 The boot screen shows "WHITECAP" with the line "working title" (`BOOT_WORKING_TITLE`, Dutch "werktitel") under it.
-The owner wants the working title replaced by "Survival of the dryest!". The game, repository, package id and promo
+The owner wants the working title replaced by "Survival of the driest!". The game, repository, package id and promo
 site are already called Whitecap.
 
 ## Options
@@ -14,13 +14,13 @@ site are already called Whitecap.
    English, and Dutch players of 10+ know the phrase style; one line for both languages.
 2. **Translate the tagline** for Dutch (for example "Wie droog blijft, wint!"). Clear, but loses the pun and the
    recognisable line.
-3. **Rename the game** to "Survival of the dryest!". Touches export names, package id, store listings and the promo
+3. **Rename the game** to "Survival of the driest!". Touches export names, package id, store listings and the promo
    site; long for an app icon label.
 
 ## Decision
 
 Option 1: key `BOOT_TAGLINE` with the same text in both columns; also in the web loader. The name stays Whitecap.
-"Dryest" is kept as the owner wrote it (a recognised variant of "driest" that mirrors "fittest").
+"Driest" is the correct English form of the pun on "fittest".
 
 Option 2 is rejected because the pun is the point. Option 3 is rejected for its cost and because the owner asked to
 replace the working-title line, not the name.

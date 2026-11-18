@@ -9,7 +9,7 @@ and specifies the changes. Decisions are recorded in `docs/adr/`. Terms are in `
 Contents
 
 1. Existing architecture (summary)
-2. Change 1 - tagline "Survival of the dryest!"
+2. Change 1 - tagline "Survival of the driest!"
 3. Change 2 - bots that fight
 4. Change 3 - five new fighters
 5. Change 4 - two skins per fighter
@@ -71,21 +71,21 @@ Key facts the developer must keep intact:
 
 ---
 
-## 2. Change 1 - tagline "Survival of the dryest!"
+## 2. Change 1 - tagline "Survival of the driest!"
 
 Decision: ADR 007. The game stays **Whitecap**; the line under the title on the boot screen, which today reads
-"working title", becomes the tagline **"Survival of the dryest!"**, identical in English and Dutch.
+"working title", becomes the tagline **"Survival of the driest!"**, identical in English and Dutch.
 
 | File | Change |
 |---|---|
-| `i18n/strings.csv` | Remove key `BOOT_WORKING_TITLE`; add `BOOT_TAGLINE,Survival of the dryest!,Survival of the dryest!` |
+| `i18n/strings.csv` | Remove key `BOOT_WORKING_TITLE`; add `BOOT_TAGLINE,Survival of the driest!,Survival of the driest!` |
 | `ui/boot_screen.gd` | `sub.text = tr("BOOT_TAGLINE")` (rename the variable to `tagline`) |
-| `tools/i18n_add_nl.py` | Replace the `BOOT_WORKING_TITLE` entry by `"BOOT_TAGLINE": "Survival of the dryest!"` |
-| `web/shell.html` | Under `<h1>WHITECAP</h1>` in the loader add `<p class="tag">Survival of the dryest!</p>` (styled like `.msg`, white) |
+| `tools/i18n_add_nl.py` | Replace the `BOOT_WORKING_TITLE` entry by `"BOOT_TAGLINE": "Survival of the driest!"` |
+| `web/shell.html` | Under `<h1>WHITECAP</h1>` in the loader add `<p class="tag">Survival of the driest!</p>` (styled like `.msg`, white) |
 | unchanged | `TITLE`, `project.godot` name, export names, package id |
 
 Acceptance (A-T):
-- A-T1 The boot screen shows "WHITECAP" with "Survival of the dryest!" below it, in English and in Dutch (`lang=nl`).
+- A-T1 The boot screen shows "WHITECAP" with "Survival of the driest!" below it, in English and in Dutch (`lang=nl`).
 - A-T2 No file in the repo contains `BOOT_WORKING_TITLE`, "working title" or "werktitel" (grep, excluding `.git`).
 - A-T3 `test_every_text_key_exists` and `test_every_language_complete` pass.
 - A-T4 The web loader shows the tagline under WHITECAP.
@@ -806,7 +806,7 @@ Title: A-T1..A-T4 (section 2).
 
 | Part | Reused | New | Owner input | Costs / accounts | Extra resources |
 |---|---|---|---|---|---|
-| Tagline | i18n, boot screen, web shell | one text key | confirm spelling "dryest" (5 min) | none | none |
+| Tagline | i18n, boot screen, web shell | one text key | none (spelling "driest" confirmed 2026-11-18) | none | none |
 | Bots | sim, RNG, Ent state, balance runner, ball brain roles | layered brain, metrics tool, 11 int fields | playtest about 15 min per level after a2 | none | CI about +30 s (light bot check); CPU per tick up to 2x |
 | Fighters | projectile model, dash/dive code, cutout pipeline, sfx synth, path/rewards, collection | 2 mechanics (guard, trap) + 3 flags, 5 builders, 10 sounds, about 10 text keys | approve free picks (otter, hermit); art review (zoo contact sheet); approve the relay allowlist change + dev deploy in st33f-engine | none (all art and audio made by code) | web download about +0.3 MB (SVG + Ogg) |
 | Skins | looks, palette, rewards, season, mastery counters | accessory library, slots, manifest, mastery looks | approve the skin list and the "golden + crown" mastery theme; art review | none | +16 look folders, each far below the 1024 x 1024 budget |

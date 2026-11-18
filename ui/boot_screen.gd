@@ -36,13 +36,13 @@ func _ready() -> void:
 	title.position.y = 260
 	title.grow_horizontal = Control.GROW_DIRECTION_BOTH
 
-	var sub := Label.new()
-	sub.text = tr("BOOT_WORKING_TITLE")
-	sub.label_settings = UiTheme.heading(40, Color.WHITE, 8)
-	add_child(sub)
-	sub.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	sub.position.y = 540
-	sub.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	var tagline := Label.new()
+	tagline.text = tr("BOOT_TAGLINE")
+	tagline.label_settings = UiTheme.heading(40, Color.WHITE, 8)
+	add_child(tagline)
+	tagline.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	tagline.position.y = 540
+	tagline.grow_horizontal = Control.GROW_DIRECTION_BOTH
 
 	_tap = Label.new()
 	_tap.text = tr("BOOT_TAP")
