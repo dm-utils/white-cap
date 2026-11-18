@@ -430,7 +430,7 @@ func test_replay() -> void:
 	# a "player" who only reads the sim, like real input (BotBrain draws from sim.rng, so it can't stand in)
 	var m := Match.create(4242, "crab", 6, "normal")
 	while not (m.finished() or m.human_out()):
-		m.step(_player_cmd(m.sim, m.sim.ents[m.human]))
+		m.step(TestPlayer.cmd(m.sim, m.sim.ents[m.human]))
 	var claimed := m.human_result()
 	var rep := Replay.encode(m.replay)
 	check(rep.ticks == m.replay.size() and rep.rle.size() <= rep.ticks, "replay is run-length encoded (%d ticks, %d runs, %d bytes)" % [rep.ticks, rep.rle.size(), JSON.stringify(rep).length()])
@@ -453,28 +453,6 @@ func test_replay() -> void:
 	tampered.ticks += 1
 	check(Replay.check(4242, "crab", "normal", tampered, claimed).reason == "bad_replay", "ticks that do not add up are caught")
 	check(Replay.check(4242, "shark", "normal", rep, claimed).reason == "bad_setup", "unknown animal is refused")
-
-
-## Test player: heads for the middle of the island, attacks the nearest animal, uses the special now and then.
-func _player_cmd(sim: MatchSim, me: MatchSim.Ent) -> Dictionary:
-	var target: MatchSim.Ent = null
-	var best := 1 << 40
-	for e in sim.ents:
-		if e.alive and e.id != me.id:
-			var d: int = (e.x - me.x) * (e.x - me.x) + (e.y - me.y) * (e.y - me.y)
-			if d < best:
-				best = d
-				target = e
-	var cx := sim.width * MatchSim.TILE / 2
-	var cy := sim.height * MatchSim.TILE / 2
-	var cmd := {"m": Fx.atan2_a(cy - me.y, cx - me.x) if absi(cx - me.x) + absi(cy - me.y) > 3000 else (sim.tick * 7) % Fx.ANGLES, "a": -1, "s": -1}
-	if target != null:
-		var aim := Fx.atan2_a(target.y - me.y, target.x - me.x)
-		cmd.a = aim
-		if sim.tick % 240 == 0:
-			cmd.s = aim
-			cmd["sd"] = Fx.dist(target.x - me.x, target.y - me.y)
-	return cmd
 
 
 ## The leaderboard: one row per entry, own place added below the top when it is not in it, pending marked.
@@ -527,7 +505,7 @@ func test_score_check() -> void:
 	var animal := Daily.animal_for(seed_value)
 	var m := Match.create(seed_value, animal, 6, Daily.BOTS)
 	while not (m.finished() or m.human_out()):
-		m.step(_player_cmd(m.sim, m.sim.ents[m.human]))
+		m.step(TestPlayer.cmd(m.sim, m.sim.ents[m.human]))
 	var r := m.human_result()
 	var claimed := {"place": r.place, "kos": r.kos, "survived_s": r.survived_s}
 	var rep := Replay.encode(m.replay)
@@ -779,7 +757,7 @@ func test_rollback() -> void:
 				if c.tick >= ticks or not c.can_advance():
 					continue
 				# each player reacts to what they see on their own screen (predictions included)
-				c.local_input(Match.cmd_to(_player_cmd(c.m.sim, c.m.sim.ents[i])))
+				c.local_input(Match.cmd_to(TestPlayer.cmd(c.m.sim, c.m.sim.ents[i])))
 				for out in c.outbox:
 					for j in n:
 						if j != i:
