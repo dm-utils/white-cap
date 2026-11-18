@@ -87,7 +87,7 @@
       "free": false,
       "hp": 14000,
       "radius": 460,
-      "speed": 108,
+      "speed": 135,
       "attack": {
         "kind": "spines",
         "count": 8,
