@@ -145,15 +145,15 @@ split into four layers that run in this order every tick:
     "easy":   { "think_ticks": 12, "reaction_ticks": 12, "aim_error": 450, "lead_pct": 20,  "dodge_pct": 25,
                 "aggression_pct": 55, "keep_charges": 1, "fire_gap_ticks": 55, "special_pct": 50,
                 "tide_lookahead_ticks": 0,   "samples": 10, "look_tiles": 7, "damage_pct": 50,
-                "human_damage_pct": 55, "ball_damage_pct": 55, "max_on_target": 2 },
+                "human_damage_pct": 95, "ball_damage_pct": 85, "max_on_target": 2 },
     "normal": { "think_ticks": 8,  "reaction_ticks": 7,  "aim_error": 150, "lead_pct": 75,  "dodge_pct": 55,
                 "aggression_pct": 75, "keep_charges": 0, "fire_gap_ticks": 40, "special_pct": 50,
                 "tide_lookahead_ticks": 75,  "samples": 12, "look_tiles": 8, "damage_pct": 22,
-                "human_damage_pct": 85, "ball_damage_pct": 75, "max_on_target": 2 },
+                "human_damage_pct": 175, "ball_damage_pct": 75, "max_on_target": 2 },
     "hard":   { "think_ticks": 5,  "reaction_ticks": 3,  "aim_error": 40,  "lead_pct": 100, "dodge_pct": 85,
                 "aggression_pct": 90, "keep_charges": 0, "fire_gap_ticks": 28, "special_pct": 100,
                 "tide_lookahead_ticks": 150, "samples": 14, "look_tiles": 9, "damage_pct": 22,
-                "human_damage_pct": 125, "ball_damage_pct": 90, "max_on_target": 3 }
+                "human_damage_pct": 180, "ball_damage_pct": 50, "max_on_target": 3 }
   },
   "styles": {
     "crab":    { "range_pct": 55, "min_pct": 0,  "flee_hp_pct": 25, "damage_pct": 115 },
@@ -173,8 +173,7 @@ split into four layers that run in this order every tick:
 
 Values of everything except `human_damage_pct`, `ball_damage_pct` and `ball_human_damage_pct` as tuned in step a2
 (measured, see 6.1); the first proposal differed in `aim_error`, `lead_pct`, `fire_gap_ticks`, `special_pct`,
-`damage_pct` and the gull style. The three damage fields added in step a3 are **starting values** for the tuning of
-section 7.2. Styles of the five new animals are untuned placeholders for b1.
+`damage_pct` and the gull style. The three damage fields added in step a3 are tuned values (6.1.1). Styles of the five new animals are untuned placeholders for b1.
 
 Meaning of the level fields:
 
@@ -928,6 +927,48 @@ Same branch (`feature/livelier-bots`), after a2. Order matters: first prove that
    minimum; ball KOs per match) and list deviations.
 
 Acceptance: A-B1 (7.2 incl. the new human table), A-B2, A-B4, A-B6, A-B7; A-B3 and A-B5 by the owner.
+
+#### 6.1.1 Result of step a3 (damage against humans; ADR 008)
+
+A-B7: with temporary equal values (`human_damage_pct = damage_pct`, style 115/170) all-bot output (3 levels x 200
+matches) was identical to the a2 table above, and `--human=1` legacy (100 matches) gave the a2 values (places 1.20 / 1.15
+/ 1.72, focus 31.5 / 32.1 / 27.2). Those values were not committed.
+
+Final values: `human_damage_pct` easy 95, normal 175, hard 180 (no style `human_damage_pct`); `ball_damage_pct` easy 85,
+normal 75, hard 50 (`ball_human_damage_pct` absent); `damage_pct` unchanged (50 / 22 / 22). Tuning data: with
+`human_damage_pct` normal 100 the skilled player won 66 %, at 160 37 %, at 175 38.5 % (200 matches); easy 55 / 75 / 110 left
+the skilled player at 99 % wins, so easy was set by the casual profile (95: place 2.75, 37 % wins).
+
+Human runs, 200 matches per level, seed 1 (place / win % / early out % / focus %):
+
+| Profile | easy | normal | hard |
+|---|---|---|---|
+| skilled | 1.01 / 99 / 1 / 8.5 | 2.69 / 38.5 / 57 / 4.0 | 4.09 / 5.5 / 84.5 / 3.3 |
+| casual | 2.75 / 37 / 57 / 19.5 | 5.37 / 0.5 / 98.5 / 3.4 | 5.59 / 0.5 / 99.5 / 2.9 |
+| legacy | 1.78 / 67.5 / 31 / 23.8 | 4.83 / 1.5 / 98.5 / 3.6 | 4.92 / 4.0 / 95.5 / 3.3 |
+
+(skilled normal at 175 measured on its own run; the 200-match ladder run was done at 160: 2.57 / 40.5 %.)
+
+Met (priority order of step a3.3): (1) skilled hard win 5.5 % (3-15), hard place 4.09 (>= 3.3), skilled ladder
+1.01 -> 2.69 -> 4.09 (+1.68, +1.40); skilled normal place 2.69 (2.3-3.3) and win 38.5 % (15-40); (2) casual easy win 37 %
+(>= 25) and place 2.75 (<= 2.8); focus <= 35 / 35 / 40 everywhere; skilled easy place and win.
+Not met, with values:
+- Early out: skilled easy 1 % (ok), normal 57 % (<= 20), hard 84.5 % (<= 35); casual easy 57 % (<= 15), normal 98.5 %
+  (<= 30). The early-out share rises with every step that makes the ladder steeper; with the win targets as priority
+  the caps cannot hold. The casual player (no dodge, stands in the open) is killed in about 11 s from normal upwards.
+- Casual ladder: easy 2.75 -> normal 5.37 (+2.6, ok) -> hard 5.59 (+0.22, target +0.3): casual is at the ceiling.
+- Bot-vs-bot `duration_s_p10` (all-bot, 200 matches): easy 45 s (>= 80), normal 58 s (>= 75), hard 60 s (>= 70); the 25 s
+  floor holds (33 / 39 / 30 s). A try with `damage_pct` -20 % / -9 % / -14 % moved p10 only to 59 / 55 / 65 s and pushed
+  the average duration out of range (203 / 184 s), so it was reverted; the short matches are the opening brawl and
+  `damage_pct` is not the lever.
+- Strandbal normal (120 matches): KOs per match 4.86 (1.0-5.0), goals 3.12, 0-0 1 %, blue 52 %, animals 46-55 %,
+  within goals. Easy (60 matches) 0.78 KOs at `ball_damage_pct` 55 and hard 9.5 at 90, so 85 / 50 were chosen (easy about
+  2.5 and hard 3.4 KOs; informational). Blue share is noisy: 57-59 % at ball damage 65 and 70.
+
+Deviations: `ball_damage_pct` is not rising with the level (85 / 75 / 50); `human_damage_pct` normal 175 and hard 180 are
+close together because the hard level's other fields already make it much harder than normal (normal 100 -> 160 moved the
+skilled player from place 1.75 to 2.59; hard 110 -> 180 only from 3.69 to 4.19). The test profiles remain proxies: A-B5
+(owner playtest) decides whether hard feels right.
 
 ### Step b1 - fighters: sim, data, bots
 1. Sim mechanics 4.2 (mech, intangible/steady, guard, trap, projectile push/back, ball shot table).
