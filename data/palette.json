@@ -38,6 +38,40 @@
       "beak": "#FFC530",
       "legs": "#F2A93B",
       "detail": "#2B3A4A"
+    },
+    "puffer": {
+      "base": "#F2D35B",
+      "shade": "#D9B53C",
+      "accent": "#FFF1A8",
+      "spines": "#C9873A",
+      "detail": "#2B3A4A"
+    },
+    "otter": {
+      "base": "#9C6B45",
+      "shade": "#7E5334",
+      "accent": "#E8C9A0",
+      "detail": "#2B3A4A"
+    },
+    "seal": {
+      "base": "#8E9AA6",
+      "shade": "#6F7B87",
+      "accent": "#C9D2DA",
+      "detail": "#2B3A4A"
+    },
+    "hermit": {
+      "base": "#E9A23B",
+      "shade": "#C98426",
+      "accent": "#FFD08A",
+      "shell": "#F4E1C1",
+      "shell_shade": "#D8BE94",
+      "shell_line": "#B98A5E",
+      "detail": "#2B3A4A"
+    },
+    "star": {
+      "base": "#D97BC0",
+      "shade": "#B95FA0",
+      "accent": "#F7C3E0",
+      "detail": "#2B3A4A"
     }
   },
   "looks": {
