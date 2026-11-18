@@ -1,12 +1,12 @@
 {
-  "version": 2,
+  "version": 3,
   "units": "positions in milli-tiles (1 tile = 1000), speeds per tick (30 ticks/s), hp and damage x100, angles 0..4095",
   "animals": [
     {
       "id": "crab",
       "name_key": "ANIMAL_CRAB",
       "type": "land",
-      "in_slice": true,
+      "free": true,
       "hp": 12000,
       "radius": 420,
       "speed": 120,
@@ -21,6 +21,7 @@
       },
       "special": {
         "kind": "dash",
+        "mech": "dash",
         "ticks": 7,
         "speed": 700,
         "damage": 2600,
@@ -31,7 +32,7 @@
       "id": "octopus",
       "name_key": "ANIMAL_OCTOPUS",
       "type": "water",
-      "in_slice": true,
+      "free": true,
       "hp": 9500,
       "radius": 420,
       "speed": 120,
@@ -46,6 +47,7 @@
       },
       "special": {
         "kind": "ink",
+        "mech": "cloud",
         "radius": 2500,
         "ticks": 96,
         "offset": 2800,
@@ -56,7 +58,7 @@
       "id": "gull",
       "name_key": "ANIMAL_GULL",
       "type": "flyer",
-      "in_slice": true,
+      "free": true,
       "hp": 8800,
       "radius": 400,
       "speed": 120,
@@ -71,10 +73,156 @@
       },
       "special": {
         "kind": "dive",
+        "mech": "dive",
         "range": 7500,
         "delay": 12,
         "radius": 1950,
         "damage": 3600
+      }
+    },
+    {
+      "id": "puffer",
+      "name_key": "ANIMAL_PUFFER",
+      "type": "water",
+      "free": false,
+      "hp": 14000,
+      "radius": 460,
+      "speed": 108,
+      "attack": {
+        "kind": "spines",
+        "count": 8,
+        "spread": 512,
+        "speed": 380,
+        "life": 7,
+        "damage": 1100,
+        "radius": 240
+      },
+      "special": {
+        "kind": "puff",
+        "mech": "guard",
+        "ticks": 90,
+        "taken_pct": 50,
+        "self_speed_pct": 80,
+        "no_attack": 0,
+        "grow_pct": 150,
+        "steady": 0,
+        "bounce_damage": 1500,
+        "bounce_push": 2600
+      }
+    },
+    {
+      "id": "otter",
+      "name_key": "ANIMAL_OTTER",
+      "type": "water",
+      "free": true,
+      "hp": 9000,
+      "radius": 400,
+      "speed": 132,
+      "attack": {
+        "kind": "shell",
+        "count": 1,
+        "spread": 0,
+        "speed": 520,
+        "life": 14,
+        "damage": 1700,
+        "radius": 280
+      },
+      "special": {
+        "kind": "slide",
+        "mech": "dash",
+        "ticks": 14,
+        "speed": 560,
+        "damage": 0,
+        "push": 0,
+        "intangible": 1,
+        "refill": 1
+      }
+    },
+    {
+      "id": "seal",
+      "name_key": "ANIMAL_SEAL",
+      "type": "water",
+      "free": false,
+      "hp": 12500,
+      "radius": 460,
+      "speed": 112,
+      "attack": {
+        "kind": "jet",
+        "count": 1,
+        "spread": 0,
+        "speed": 460,
+        "life": 11,
+        "damage": 1300,
+        "radius": 320,
+        "push": 1200
+      },
+      "special": {
+        "kind": "belly",
+        "mech": "dash",
+        "ticks": 12,
+        "speed": 560,
+        "damage": 1400,
+        "push": 4200
+      }
+    },
+    {
+      "id": "hermit",
+      "name_key": "ANIMAL_HERMIT",
+      "type": "land",
+      "free": true,
+      "hp": 13000,
+      "radius": 440,
+      "speed": 112,
+      "attack": {
+        "kind": "poke",
+        "count": 1,
+        "spread": 0,
+        "speed": 600,
+        "life": 6,
+        "damage": 2000,
+        "radius": 420
+      },
+      "special": {
+        "kind": "shell",
+        "mech": "guard",
+        "ticks": 75,
+        "taken_pct": 10,
+        "self_speed_pct": 30,
+        "no_attack": 1,
+        "grow_pct": 100,
+        "steady": 1,
+        "bounce_damage": 0,
+        "bounce_push": 0
+      }
+    },
+    {
+      "id": "star",
+      "name_key": "ANIMAL_STAR",
+      "type": "land",
+      "free": false,
+      "hp": 10000,
+      "radius": 420,
+      "speed": 118,
+      "attack": {
+        "kind": "star",
+        "count": 1,
+        "spread": 0,
+        "speed": 420,
+        "life": 20,
+        "damage": 1400,
+        "radius": 300,
+        "back": 10
+      },
+      "special": {
+        "kind": "arm",
+        "mech": "trap",
+        "offset": 0,
+        "arm_ticks": 15,
+        "fuse_ticks": 150,
+        "trigger": 600,
+        "radius": 1800,
+        "damage": 3200,
+        "max": 2
       }
     }
   ]

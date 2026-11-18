@@ -39,7 +39,7 @@ static func decode(replay: Dictionary) -> Array:
 ## Plays the match again. Returns {ok, reason, result, hash}: ok when the replay is well-formed, the match ended
 ## (finished, or the player was washed away) exactly at the last tick, and the result matches the claim.
 static func check(seed_value: int, animal: String, bots: String, replay: Dictionary, claimed: Dictionary) -> Dictionary:
-	if not Match.SLICE_ANIMALS.has(animal) or not ["easy", "normal", "hard"].has(bots):
+	if not Match.roster().has(animal) or not ["easy", "normal", "hard"].has(bots):
 		return {"ok": false, "reason": "bad_setup", "result": {}, "hash": 0}
 	var cmds := decode(replay)
 	if cmds.is_empty():

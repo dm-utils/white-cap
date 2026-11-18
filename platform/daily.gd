@@ -33,7 +33,7 @@ static func local_seed(day: String) -> int:
 
 ## Everyone plays the same animal that day; it follows from the seed.
 static func animal_for(seed_value: int) -> String:
-	return Match.SLICE_ANIMALS[seed_value % Match.SLICE_ANIMALS.size()]
+	return Match.roster()[seed_value % Match.roster().size()]
 
 
 ## Score = points for the place + per knockout + per second survived (rules.json "score").
