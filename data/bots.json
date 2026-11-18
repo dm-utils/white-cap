@@ -1,13 +1,139 @@
 {
-  "version": 1,
+  "version": 3,
   "levels": {
-    "easy":   { "think_ticks": 12, "aim_error": 300, "aggression_pct": 40, "samples": 10, "look_tiles": 7, "damage_pct": 55 },
-    "normal": { "think_ticks": 9,  "aim_error": 180, "aggression_pct": 60, "samples": 12, "look_tiles": 8, "damage_pct": 80 },
-    "hard":   { "think_ticks": 6,  "aim_error": 90,  "aggression_pct": 80, "samples": 14, "look_tiles": 9, "damage_pct": 100 }
+    "easy": {
+      "think_ticks": 12,
+      "reaction_ticks": 12,
+      "aim_error": 450,
+      "lead_pct": 20,
+      "dodge_pct": 25,
+      "aggression_pct": 55,
+      "keep_charges": 1,
+      "fire_gap_ticks": 55,
+      "special_pct": 50,
+      "tide_lookahead_ticks": 0,
+      "samples": 10,
+      "look_tiles": 7,
+      "damage_pct": 50,
+      "max_on_target": 2,
+      "human_damage_pct": 95,
+      "ball_damage_pct": 85
+    },
+    "normal": {
+      "think_ticks": 8,
+      "reaction_ticks": 7,
+      "aim_error": 150,
+      "lead_pct": 75,
+      "dodge_pct": 55,
+      "aggression_pct": 75,
+      "keep_charges": 0,
+      "fire_gap_ticks": 40,
+      "special_pct": 50,
+      "tide_lookahead_ticks": 75,
+      "samples": 12,
+      "look_tiles": 8,
+      "damage_pct": 22,
+      "max_on_target": 2,
+      "human_damage_pct": 175,
+      "ball_damage_pct": 75
+    },
+    "hard": {
+      "think_ticks": 5,
+      "reaction_ticks": 3,
+      "aim_error": 40,
+      "lead_pct": 100,
+      "dodge_pct": 85,
+      "aggression_pct": 90,
+      "keep_charges": 0,
+      "fire_gap_ticks": 28,
+      "special_pct": 100,
+      "tide_lookahead_ticks": 150,
+      "samples": 14,
+      "look_tiles": 9,
+      "damage_pct": 22,
+      "max_on_target": 3,
+      "human_damage_pct": 180,
+      "ball_damage_pct": 50
+    }
+  },
+  "styles": {
+    "crab": {
+      "range_pct": 55,
+      "min_pct": 0,
+      "flee_hp_pct": 25,
+      "damage_pct": 115
+    },
+    "octopus": {
+      "range_pct": 65,
+      "min_pct": 30,
+      "flee_hp_pct": 30,
+      "damage_pct": 170
+    },
+    "gull": {
+      "range_pct": 65,
+      "min_pct": 40,
+      "flee_hp_pct": 35
+    },
+    "puffer": {
+      "range_pct": 50,
+      "min_pct": 0,
+      "flee_hp_pct": 20
+    },
+    "otter": {
+      "range_pct": 70,
+      "min_pct": 40,
+      "flee_hp_pct": 40
+    },
+    "seal": {
+      "range_pct": 60,
+      "min_pct": 0,
+      "flee_hp_pct": 25
+    },
+    "hermit": {
+      "range_pct": 55,
+      "min_pct": 0,
+      "flee_hp_pct": 20
+    },
+    "star": {
+      "range_pct": 70,
+      "min_pct": 25,
+      "flee_hp_pct": 30
+    }
+  },
+  "default_style": {
+    "range_pct": 60,
+    "min_pct": 0,
+    "flee_hp_pct": 30
   },
   "default_level": "easy",
   "names": {
-    "adjectives": ["Swift", "Brave", "Sneaky", "Sunny", "Salty", "Bouncy", "Sleepy", "Mighty", "Lucky", "Fizzy", "Jolly", "Daring"],
-    "nouns": ["Otter", "Gull", "Crab", "Squid", "Seal", "Clam", "Puffer", "Starfish", "Shrimp", "Pelican", "Turtle", "Urchin"]
+    "adjectives": [
+      "Swift",
+      "Brave",
+      "Sneaky",
+      "Sunny",
+      "Salty",
+      "Bouncy",
+      "Sleepy",
+      "Mighty",
+      "Lucky",
+      "Fizzy",
+      "Jolly",
+      "Daring"
+    ],
+    "nouns": [
+      "Otter",
+      "Gull",
+      "Crab",
+      "Squid",
+      "Seal",
+      "Clam",
+      "Puffer",
+      "Starfish",
+      "Shrimp",
+      "Pelican",
+      "Turtle",
+      "Urchin"
+    ]
   }
 }

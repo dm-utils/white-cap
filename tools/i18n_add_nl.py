@@ -6,7 +6,7 @@ import os
 
 NL = {
     "TITLE": "WHITECAP",
-    "BOOT_WORKING_TITLE": "werktitel",
+    "BOOT_TAGLINE": "Survival of the driest!",
     "BOOT_TAP": "Tik om te beginnen",
     "BOOT_LOADING": "Laden…",
     "MENU_PLAY": "SPELEN",

@@ -34,8 +34,7 @@ static func create(seed_value: int, human_animal: String, players := 6, level :=
 		if e.id == m.human:
 			m.names.append("")
 			continue
-		e.is_bot = 1
-		e.damage_pct = int(m._bot_cfg.damage_pct)
+		m.make_bot(e.id)
 		var adj: Array = bots.names.adjectives
 		var noun: Array = bots.names.nouns
 		m.names.append("%s %s %d" % [adj[pick.range_i(adj.size())], noun[pick.range_i(noun.size())], 1 + pick.range_i(98)])
@@ -71,8 +70,7 @@ static func create_online(seed_value: int, animals: Array, players := 6, level :
 		m.humans.append(i)
 	for e in m.sim.ents:
 		if e.id >= animals.size():
-			e.is_bot = 1
-			e.damage_pct = int(m._bot_cfg.damage_pct)
+			m.make_bot(e.id)
 	m.human = -1
 	return m
 
@@ -93,7 +91,16 @@ func step_many(cmds: Dictionary) -> void:
 ## A player who left: from now on a bot plays that slot (every screen does it at the same tick).
 func to_bot(slot: int) -> void:
 	humans.erase(slot)
-	sim.ents[slot].is_bot = 1
+	make_bot(slot)
+
+
+## Slot plays as a bot: flag and damage multipliers (against bots, against humans) from the level and animal style.
+func make_bot(slot: int) -> void:
+	var e: MatchSim.Ent = sim.ents[slot]
+	var d := BotBrain.damage_pcts(_bot_cfg, str(sim.animals[slot].id), sim.mode)
+	e.is_bot = 1
+	e.damage_pct = d.x
+	e.human_damage_pct = d.y
 
 
 const EMPTY := [-1, -1, -1, -1]

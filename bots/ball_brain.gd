@@ -22,6 +22,7 @@ static func think(sim: MatchSim, e: MatchSim.Ent, cfg: Dictionary) -> Dictionary
 	var shoot_dir := Fx.atan2_a(goal.y - sim.by, goal.x - sim.bx)
 	var aligned := absi(Fx.angle_diff(to_ball, shoot_dir)) < ALIGN
 	var role := _role(sim, e)
+	BotBrain.reflex(sim, e, cfg)
 
 	if sim.tick >= e.next_think:
 		e.next_think = sim.tick + int(cfg.think_ticks) + sim.rng.range_i(4)
@@ -51,6 +52,9 @@ static func think(sim: MatchSim, e: MatchSim.Ent, cfg: Dictionary) -> Dictionary
 		if cmd.a < 0:
 			_fight(sim, e, cmd, cfg)
 
+	if sim.tick < e.dodge_until:
+		cmd.m = e.dodge_dir # a sidestep beats the plan
+		return cmd
 	var gx := e.goal_x - e.x
 	var gy := e.goal_y - e.y
 	if Fx.dist(gx, gy) > 250:
@@ -131,9 +135,12 @@ static func _fight(sim: MatchSim, e: MatchSim.Ent, cmd: Dictionary, cfg: Diction
 		return
 	if Fx.dist(foe.x - sim.bx, foe.y - sim.by) > 3500:
 		return # only fight for the ball, not for its own sake
-	if sim.rng.range_i(100) < int(cfg.aggression_pct) / 2:
-		var err := int(cfg.aim_error)
-		cmd.a = posmod(Fx.atan2_a(foe.y - e.y, foe.x - e.x) + sim.rng.between(-err, err), Fx.ANGLES)
+	if sim.tick < e.next_shot or sim.rng.range_i(100) >= int(cfg.aggression_pct):
+		return
+	var p := BotBrain.lead_point(sim, e, foe, int(sim.animals[e.id].attack.speed), int(cfg.lead_pct))
+	var err := int(cfg.aim_error)
+	cmd.a = posmod(Fx.atan2_a(p.y - e.y, p.x - e.x) + sim.rng.between(-err, err), Fx.ANGLES)
+	e.next_shot = sim.tick + int(cfg.fire_gap_ticks) + sim.rng.range_i(int(cfg.fire_gap_ticks) + 1)
 
 
 static func _nearest_foe(sim: MatchSim, e: MatchSim.Ent) -> MatchSim.Ent:

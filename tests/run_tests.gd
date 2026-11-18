@@ -24,6 +24,9 @@ func _ready() -> void:
 	test_sim_rules()
 	test_determinism()
 	test_golden_traces()
+	test_bots_fight()
+	test_bot_damage_split()
+	test_bots_config()
 	test_result_bookkeeping()
 	test_every_asset_has_credits()
 	test_setting_declarations()
@@ -311,6 +314,116 @@ func test_golden_traces() -> void:
 		print("golden traces updated: ", out)
 
 
+## Light bot check: all-bot matches on normal fight (attack rate, no standing around) and replay exactly.
+func test_bots_fight() -> void:
+	var alive_ticks := 0
+	var idle_ticks := 0
+	var attacks := 0
+	var hashes: Array = []
+	for pass_no in 2:
+		for i in 4:
+			var m := Match.create(900 + i * 31, "", 6, "normal")
+			var before: Array = []
+			for t in 1800:
+				before.clear()
+				for e in m.sim.ents:
+					before.append([e.x, e.y, e.alive])
+				m.step()
+				if pass_no == 0 and t >= 30:
+					for e in m.sim.ents:
+						if before[e.id][2] == 1:
+							alive_ticks += 1
+							if e.x == before[e.id][0] and e.y == before[e.id][1] and e.dash == 0:
+								idle_ticks += 1
+				for ev in m.sim.events:
+					if pass_no == 0 and ev.type == "attack":
+						attacks += 1
+			hashes.append(m.sim.state_hash())
+	var per_min := attacks * 1800.0 / maxi(1, alive_ticks)
+	var idle := 100.0 * idle_ticks / maxi(1, alive_ticks)
+	check(per_min >= 10.0, "bots attack at least 10 times per alive minute (%.1f)" % per_min)
+	check(idle <= 15.0, "bots stand idle at most 15 %% of the time (%.1f %%)" % idle)
+	check(hashes.slice(0, 4) == hashes.slice(4, 8), "the same seeds give the same bot matches twice")
+
+
+
+## Bot damage against bots and against humans (docs/design.md 3.9): chosen on impact by the victim.
+func _hp_loss(attacker: Dictionary, victim_bot: int, a_animal: String, v_animal: String, cmd: Dictionary, ticks: int) -> int:
+	var s := _duel(a_animal, v_animal)
+	s.ents[1].y = s.ents[0].y + 2000
+	s.ents[0].is_bot = int(attacker.bot)
+	s.ents[0].damage_pct = int(attacker.dmg)
+	s.ents[0].human_damage_pct = int(attacker.hdmg)
+	s.ents[1].is_bot = victim_bot
+	if cmd.has("s"):
+		s.ents[0].special = int(s.rules.attack.special_hits)
+	var hp := int(s.ents[1].hp)
+	for t in ticks:
+		s.step([cmd if t == 0 else {}, {}])
+	return hp - int(s.ents[1].hp)
+
+
+func test_bot_damage_split() -> void:
+	var m := Match.create(5, "crab", 6, "hard")
+	var cfg := BotBrain.level_config("hard")
+	check(m.sim.ents[0].damage_pct == 100 and m.sim.ents[0].human_damage_pct == 100, "the human keeps 100 / 100")
+	var ok := true
+	for e in m.sim.ents.slice(1):
+		var d := BotBrain.damage_pcts(cfg, str(m.sim.animals[e.id].id), "")
+		ok = ok and e.is_bot == 1 and e.damage_pct == d.x and e.human_damage_pct == d.y
+	check(ok, "every bot has the damage values of its level and style")
+	var bot := {"bot": 1, "dmg": 40, "hdmg": 150}
+	var human := {"bot": 0, "dmg": 100, "hdmg": 100}
+	var shot := {"a": 1024}
+	check(_hp_loss(bot, 0, "crab", "crab", shot, 6) == 2400 * 150 / 100, "a bot shot takes base x human_damage_pct from a human")
+	check(_hp_loss(bot, 1, "crab", "crab", shot, 6) == 2400 * 40 / 100, "a bot shot takes base x damage_pct from a bot")
+	check(_hp_loss(human, 1, "crab", "crab", shot, 6) == 2400, "a human shot takes the base damage")
+	var dash := {"s": 1024, "sd": 2000}
+	check(_hp_loss(bot, 0, "crab", "crab", dash, 10) == 2600 * 150 / 100, "a bot dash takes human_damage_pct from a human")
+	check(_hp_loss(bot, 1, "crab", "crab", dash, 10) == 2600 * 40 / 100, "a bot dash takes damage_pct from a bot")
+	check(_hp_loss(bot, 0, "gull", "crab", dash, 14) == 3600 * 150 / 100, "a bot dive takes human_damage_pct from a human")
+	check(_hp_loss(bot, 1, "gull", "crab", dash, 14) == 3600 * 40 / 100, "a bot dive takes damage_pct from a bot")
+	# water does not scale
+	var loss := []
+	for level in ["easy", "hard"]:
+		var w := Match.create(5, "crab", 6, level)
+		w.sim.ents[0].x = 4500
+		w.sim.ents[0].y = 4500
+		var hp := int(w.sim.ents[0].hp)
+		for t in 5:
+			w.sim.step([{}, {}, {}, {}, {}, {}])
+		loss.append(hp - int(w.sim.ents[0].hp))
+	check(loss[0] == loss[1] and loss[0] > 0, "water damage on a human is the same on easy and hard (%s)" % str(loss))
+	# online: two humans stay at 100, a leaver gets bot values
+	var o := Match.create_online(5, ["crab", "gull"], 6, "normal")
+	check(o.sim.ents[0].human_damage_pct == 100 and o.sim.ents[1].damage_pct == 100, "online humans keep 100 / 100")
+	o.to_bot(1)
+	var d := BotBrain.damage_pcts(BotBrain.level_config("normal"), "gull", "")
+	check(o.sim.ents[1].is_bot == 1 and o.sim.ents[1].damage_pct == d.x and o.sim.ents[1].human_damage_pct == d.y, "a player who leaves gets the bot values")
+	# Strandbal: ball keys, with fallback to the normal ones
+	var c := {"damage_pct": 20, "human_damage_pct": 80, "ball_damage_pct": 50, "ball_human_damage_pct": 60}
+	check(BotBrain.damage_pcts(c, "gull", "ball") == Vector2i(50, 60) and BotBrain.damage_pcts(c, "gull", "") == Vector2i(20, 80), "ball mode uses the ball keys")
+	c.erase("ball_damage_pct")
+	c.erase("ball_human_damage_pct")
+	check(BotBrain.damage_pcts(c, "gull", "ball") == Vector2i(20, 80), "ball keys fall back to the normal-match values")
+	# snapshot keeps the new field
+	var s := MatchSim.new(7, ["crab", "gull"])
+	s.ents[1].human_damage_pct = 123
+	var snap := s.snapshot()
+	var h := s.state_hash()
+	s.ents[1].human_damage_pct = 5
+	s.restore(snap)
+	check(s.ents[1].human_damage_pct == 123 and s.state_hash() == h, "snapshot and restore keep human_damage_pct")
+
+
+func test_bots_config() -> void:
+	var v := []
+	for level in ["easy", "normal", "hard"]:
+		v.append(int(BotBrain.level_config(level).human_damage_pct))
+	check(v.all(func(x): return x >= 30 and x <= 200) and v[0] < v[1] and v[1] < v[2], "human_damage_pct is in 30..200 and rises easy < normal < hard (%s)" % str(v))
+
+
+
 func test_result_bookkeeping() -> void:
 	var backend = Platform.backend
 	var saved_path: String = backend.profile_path
@@ -430,7 +543,7 @@ func test_replay() -> void:
 	# a "player" who only reads the sim, like real input (BotBrain draws from sim.rng, so it can't stand in)
 	var m := Match.create(4242, "crab", 6, "normal")
 	while not (m.finished() or m.human_out()):
-		m.step(_player_cmd(m.sim, m.sim.ents[m.human]))
+		m.step(TestPlayer.cmd(m.sim, m.sim.ents[m.human]))
 	var claimed := m.human_result()
 	var rep := Replay.encode(m.replay)
 	check(rep.ticks == m.replay.size() and rep.rle.size() <= rep.ticks, "replay is run-length encoded (%d ticks, %d runs, %d bytes)" % [rep.ticks, rep.rle.size(), JSON.stringify(rep).length()])
@@ -453,28 +566,6 @@ func test_replay() -> void:
 	tampered.ticks += 1
 	check(Replay.check(4242, "crab", "normal", tampered, claimed).reason == "bad_replay", "ticks that do not add up are caught")
 	check(Replay.check(4242, "shark", "normal", rep, claimed).reason == "bad_setup", "unknown animal is refused")
-
-
-## Test player: heads for the middle of the island, attacks the nearest animal, uses the special now and then.
-func _player_cmd(sim: MatchSim, me: MatchSim.Ent) -> Dictionary:
-	var target: MatchSim.Ent = null
-	var best := 1 << 40
-	for e in sim.ents:
-		if e.alive and e.id != me.id:
-			var d: int = (e.x - me.x) * (e.x - me.x) + (e.y - me.y) * (e.y - me.y)
-			if d < best:
-				best = d
-				target = e
-	var cx := sim.width * MatchSim.TILE / 2
-	var cy := sim.height * MatchSim.TILE / 2
-	var cmd := {"m": Fx.atan2_a(cy - me.y, cx - me.x) if absi(cx - me.x) + absi(cy - me.y) > 3000 else (sim.tick * 7) % Fx.ANGLES, "a": -1, "s": -1}
-	if target != null:
-		var aim := Fx.atan2_a(target.y - me.y, target.x - me.x)
-		cmd.a = aim
-		if sim.tick % 240 == 0:
-			cmd.s = aim
-			cmd["sd"] = Fx.dist(target.x - me.x, target.y - me.y)
-	return cmd
 
 
 ## The leaderboard: one row per entry, own place added below the top when it is not in it, pending marked.
@@ -527,7 +618,7 @@ func test_score_check() -> void:
 	var animal := Daily.animal_for(seed_value)
 	var m := Match.create(seed_value, animal, 6, Daily.BOTS)
 	while not (m.finished() or m.human_out()):
-		m.step(_player_cmd(m.sim, m.sim.ents[m.human]))
+		m.step(TestPlayer.cmd(m.sim, m.sim.ents[m.human]))
 	var r := m.human_result()
 	var claimed := {"place": r.place, "kos": r.kos, "survived_s": r.survived_s}
 	var rep := Replay.encode(m.replay)
@@ -548,11 +639,17 @@ func test_score_check() -> void:
 	check(not by.sc_animal.ok and by.sc_animal.reason == "not_the_animal_of_the_day", "another animal on the day board is rejected")
 	check(not by.sc_bots.ok and by.sc_bots.reason == "wrong_bots_for_week", "week board with harder-to-check bots is rejected")
 	check(not by.sc_lie.ok and by.sc_lie.reason == "result_mismatch", "a better place than played is rejected")
-	# replays recorded on Windows (tests/golden/replays_windows.json) must give the same verdicts on every platform
-	var golden: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/golden/replays_windows.json"))
+	# recorded replays (tests/golden/replays_recorded.json, rewritten with --update-golden) must verify on every platform
+	var recorded_path := "res://tests/golden/replays_recorded.json"
+	if OS.get_cmdline_user_args().has("--update-golden"):
+		var rf := FileAccess.open(recorded_path, FileAccess.WRITE)
+		rf.store_string(JSON.stringify(pending, "  ", false, true) + "\n")
+		rf.close()
+		print("replay fixture updated: ", recorded_path)
+	var golden: Variant = JSON.parse_string(FileAccess.get_file_as_string(recorded_path))
 	var gv := ScoreCheck.run(golden)
 	check(gv.verdicts.size() == 4 and gv.verdicts[0].ok and gv.verdicts.slice(1).all(func(v): return not v.ok),
-		"replays recorded on Windows verify the same here (%s)" % JSON.stringify(gv.verdicts))
+		"recorded replays verify the same here (%s)" % JSON.stringify(gv.verdicts))
 	var f := FileAccess.open("user://verify_sample.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(pending))
 	f.close()
@@ -779,7 +876,7 @@ func test_rollback() -> void:
 				if c.tick >= ticks or not c.can_advance():
 					continue
 				# each player reacts to what they see on their own screen (predictions included)
-				c.local_input(Match.cmd_to(_player_cmd(c.m.sim, c.m.sim.ents[i])))
+				c.local_input(Match.cmd_to(TestPlayer.cmd(c.m.sim, c.m.sim.ents[i])))
 				for out in c.outbox:
 					for j in n:
 						if j != i:

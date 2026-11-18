@@ -129,7 +129,7 @@ func _play(t: int) -> void:
 	var players: Array = []
 	for s in _seats:
 		if _leave.has(s) and int(_leave[s]) <= t:
-			m.sim.ents[s].is_bot = 1
+			m.make_bot(s)
 		else:
 			players.append(s)
 	m.humans = players

@@ -9,7 +9,8 @@ extends RefCounted
 const TILE := 1000
 const ENT_FIELDS := ["id", "animal_idx", "x", "y", "hp", "max_hp", "radius", "speed", "alive", "charges", "reload",
 	"cooldown", "special", "slow", "slow_pct", "dash", "dash_dx", "dash_dy", "calm", "last_hit_by", "last_hit_tick",
-	"kos", "place", "died_tick", "aim", "damage_pct", "is_bot", "goal_x", "goal_y", "next_think", "strafe"]
+	"kos", "place", "died_tick", "aim", "damage_pct", "human_damage_pct", "is_bot", "goal_x", "goal_y", "next_think", "strafe", "vx", "vy", "guard",
+	"target", "target_until", "next_shot", "reflex_at", "dodge_until", "dodge_dir", "strafe_until", "engaged"]
 const PROJ_FIELDS := ["owner", "x", "y", "dx", "dy", "life", "damage", "radius"]
 const CLOUD_FIELDS := ["owner", "x", "y", "radius", "life", "slow"]
 const DIVE_FIELDS := ["owner", "x", "y", "delay", "radius", "damage"]
@@ -50,12 +51,24 @@ class Ent:
 	var place := 0
 	var died_tick := -1
 	var aim := 0
-	var damage_pct := 100
+	var damage_pct := 100 # damage against bots
+	var human_damage_pct := 100 # damage against humans (is_bot == 0)
 	var is_bot := 0
 	var goal_x := 0
 	var goal_y := 0
 	var next_think := 0
-	var strafe := 1
+	var strafe := 1 # bots: circling side, -1 or +1
+	var vx := 0 # movement in the last tick (lead aim, threat prediction)
+	var vy := 0
+	var guard := 0 # ticks left of a guard special (not used yet)
+	var target := -1 # bots: committed target (entity id)
+	var target_until := 0
+	var next_shot := 0 # bots: earliest tick for the next shot (fire gap)
+	var reflex_at := 0 # bots: next threat check
+	var dodge_until := 0
+	var dodge_dir := 0
+	var strafe_until := 0
+	var engaged := 0 # bots: 1 = fights its target this plan, 0 = repositions
 	var team := -1 # Strandbal: 0 blue (defends the left goal), 1 orange; -1 every animal for itself
 	var respawn := 0 # Strandbal: ticks until a washed-away animal is back
 	var goals := 0
@@ -267,7 +280,8 @@ func alive_count() -> int:
 
 func attack_range(e: Ent) -> int:
 	var at: Dictionary = animals[e.id].attack
-	return int(at.speed) * int(at.life)
+	var turn := int(at.get("back", 0)) # boomerang: range until it turns
+	return int(at.speed) * (turn if turn > 0 else int(at.life))
 
 
 # --- the tick ---
@@ -349,6 +363,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			e.reload = 0
 
 	var t := type_of(e)
+	var x0 := e.x
+	var y0 := e.y
 	# movement
 	if e.dash > 0:
 		e.dash -= 1
@@ -361,7 +377,7 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 		for o in ents:
 			if o.alive and _foe(e, o) and not e.dash_hit.has(o.id) and _touch(e.x, e.y, o, e.radius):
 				e.dash_hit.append(o.id)
-				_damage(o, int(sp.damage) * e.damage_pct / 100, e.id)
+				_damage(o, _hit_amount(e, o, int(sp.damage)), e.id)
 				var speed := int(sp.speed)
 				o.x += e.dash_dx * int(sp.push) / speed
 				o.y += e.dash_dy * int(sp.push) / speed
@@ -376,6 +392,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			e.x += Fx.cos_a(m) * sp / Fx.ONE
 			e.y += Fx.sin_a(m) * sp / Fx.ONE
 	_clamp(e)
+	e.vx = e.x - x0
+	e.vy = e.y - y0
 	if mode == "ball":
 		_dribble(e, int(cmd.get("m", -1)) if e.dash == 0 else -1)
 
@@ -414,7 +432,7 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			p.dx = Fx.cos_a(ang) * int(cfg.speed) / Fx.ONE
 			p.dy = Fx.sin_a(ang) * int(cfg.speed) / Fx.ONE
 			p.life = int(cfg.life)
-			p.damage = int(cfg.damage) * e.damage_pct / 100
+			p.damage = int(cfg.damage) # base; scaled on impact
 			p.radius = int(cfg.radius)
 			projs.append(p)
 		events.append({"type": "attack", "id": e.id, "angle": e.aim})
@@ -450,7 +468,7 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 				v.y = clampi(e.y + Fx.sin_a(e.aim) * d / Fx.ONE, 0, height * TILE - 1)
 				v.delay = int(sp.delay)
 				v.radius = int(sp.radius)
-				v.damage = int(sp.damage) * e.damage_pct / 100
+				v.damage = int(sp.damage)
 				dives.append(v)
 		events.append({"type": "special", "id": e.id, "kind": str(sp.kind), "angle": e.aim})
 
@@ -465,7 +483,7 @@ func _update_projs() -> void:
 		var hit := false
 		for e in ents:
 			if e.alive and e.id != p.owner and _foe(ents[p.owner], e) and _touch(p.x, p.y, e, p.radius):
-				_damage(e, p.damage, p.owner)
+				_damage(e, _hit_amount(ents[p.owner], e, p.damage), p.owner)
 				var o: Ent = ents[p.owner]
 				o.special = mini(hits, o.special + 1)
 				events.append({"type": "hit", "id": e.id, "by": p.owner, "x": p.x, "y": p.y})
@@ -501,7 +519,7 @@ func _update_dives() -> void:
 			continue
 		for e in ents:
 			if e.alive and e.id != v.owner and _foe(ents[v.owner], e) and _touch(v.x, v.y, e, v.radius):
-				_damage(e, v.damage, v.owner)
+				_damage(e, _hit_amount(ents[v.owner], e, v.damage), v.owner)
 		if mode == "ball" and _touch_ball(v.x, v.y, v.radius):
 			var dx: int = bx - v.x
 			var dy: int = by - v.y
@@ -510,6 +528,11 @@ func _update_dives() -> void:
 			_kick(v.owner, dx, dy, int(rules.ball.shot.dive))
 		events.append({"type": "dive", "id": v.owner, "x": v.x, "y": v.y})
 	dives = keep
+
+
+## Damage an entity deals to victim: bots scale differently against humans (docs/design.md 3.9).
+func _hit_amount(src: Ent, victim: Ent, base: int) -> int:
+	return base * (src.human_damage_pct if victim.is_bot == 0 else src.damage_pct) / 100
 
 
 func _damage(e: Ent, amount: int, by: int) -> void:
