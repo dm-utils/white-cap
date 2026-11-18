@@ -71,7 +71,7 @@ func _queue() -> void:
 	add_child(_client)
 	_client.message.connect(_on_message)
 	_client.closed.connect(_on_closed)
-	_client.open(St33f.client.pvp_lobby_url(animal, _mode))
+	_client.open(St33f.client.pvp_lobby_url(animal, _mode, "", Match.build_id()))
 
 
 func _on_closed(_c: int) -> void:

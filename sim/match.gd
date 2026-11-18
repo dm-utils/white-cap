@@ -23,6 +23,20 @@ static func roster() -> Array:
 	return _roster
 
 
+## Bump when sim, bot or rules code changes what a match looks like but no data file does. Part of build_id().
+const SIM_VERSION := 1
+
+
+## What the online lobby compares: clients with another id never share a match (their sims would drift apart).
+## SIM_VERSION plus a hash of the data files that drive the sim and the bots.
+static func build_id() -> String:
+	var h := 2166136261
+	for f in ["animals", "rules", "bots", "modes/ball"]:
+		for b in FileAccess.get_file_as_string("res://data/%s.json" % f).replace("\r", "").to_utf8_buffer():
+			h = ((h ^ b) * 16777619) & 0xFFFFFFFF
+	return "%d-%08x" % [SIM_VERSION, h]
+
+
 ## Animals available from the start (`free` in data/animals.json), in roster order.
 static func free_animals() -> Array:
 	return Content.animals().filter(func(a): return bool(a.get("free", false))).map(func(a): return str(a.id))
