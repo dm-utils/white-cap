@@ -133,7 +133,7 @@ func _ready() -> void:
 	version.position = Vector2(60, 40)
 
 	var pearls := Label.new()
-	pearls.text = tr("MENU_PEARLS").format({"count": int(profile.get("pearls_total", 0))})
+	pearls.text = tr("MENU_PEARLS").format({"count": Rewards.num(profile.get("pearls_total"))})
 	pearls.label_settings = UiTheme.heading(40, UiTheme.INK, 0)
 	add_child(pearls)
 	pearls.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)

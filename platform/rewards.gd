@@ -5,6 +5,15 @@ extends RefCounted
 ## Looks, badges and avatars are for show only; nothing here gives power (FO §7).
 
 
+## Profile number to int: numbers, bools and numeric strings convert, anything else (null, containers, vectors) is
+## the fallback. int() on those types is a script error.
+static func num(v: Variant, fallback: int = 0) -> int:
+	match typeof(v):
+		TYPE_INT, TYPE_FLOAT, TYPE_BOOL, TYPE_STRING, TYPE_STRING_NAME:
+			return int(v)
+	return fallback
+
+
 static func grant(profile: Dictionary, rew: Dictionary) -> void:
 	var id := str(rew.get("id", ""))
 	match str(rew.get("kind", "")):
@@ -60,7 +69,7 @@ static func reconcile(profile: Dictionary) -> Dictionary:
 	var p := profile.duplicate(true)
 	for id in Match.free_animals():
 		_add(p, "unlocked_animals", str(id))
-	var pearls := int(p.get("pearls_total", 0))
+	var pearls := num(p.get("pearls_total"))
 	for rew in Content.load_json("res://data/path.json").rewards:
 		if int(rew.at) <= pearls:
 			grant(p, rew)

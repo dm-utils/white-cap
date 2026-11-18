@@ -156,24 +156,24 @@ static func apply_result(r: Dictionary) -> Dictionary:
 	var earned := int(table[clampi(int(r.place), 1, table.size() - 1)]) + int(r.kos) * int(path.pearls_per_knockout)
 	earned += int(r.get("goals", 0)) * int(path.get("pearls_per_goal", 0)) # Strandbal
 	var p: Dictionary = Platform.load_profile()
-	var before := int(p.get("pearls_total", 0))
+	var before := Rewards.num(p.get("pearls_total"))
 	var after := before + earned
 	p["pearls_total"] = after
 	var stats: Dictionary = p.get("stats", {})
-	stats["matches"] = int(stats.get("matches", 0)) + 1
-	stats["wins"] = int(stats.get("wins", 0)) + (1 if int(r.place) == 1 else 0)
-	stats["knockouts"] = int(stats.get("knockouts", 0)) + int(r.kos)
+	stats["matches"] = Rewards.num(stats.get("matches")) + 1
+	stats["wins"] = Rewards.num(stats.get("wins")) + (1 if int(r.place) == 1 else 0)
+	stats["knockouts"] = Rewards.num(stats.get("knockouts")) + int(r.kos)
 	if str(r.get("mode", "")) == "ball":
-		stats["ball_matches"] = int(stats.get("ball_matches", 0)) + 1
-		stats["goals"] = int(stats.get("goals", 0)) + int(r.get("goals", 0))
+		stats["ball_matches"] = Rewards.num(stats.get("ball_matches")) + 1
+		stats["goals"] = Rewards.num(stats.get("goals")) + int(r.get("goals", 0))
 	p["stats"] = stats
 	var mastery: Dictionary = p.get("mastery", {})
 	var mine: Dictionary = mastery.get(str(r.animal), {})
 	var tier_before := Mastery.tier(mine)
-	mine["matches"] = int(mine.get("matches", 0)) + 1
-	mine["wins"] = int(mine.get("wins", 0)) + (1 if int(r.place) == 1 else 0)
+	mine["matches"] = Rewards.num(mine.get("matches")) + 1
+	mine["wins"] = Rewards.num(mine.get("wins")) + (1 if int(r.place) == 1 else 0)
 	if int(r.get("goals", 0)) > 0:
-		mine["goals"] = int(mine.get("goals", 0)) + int(r.goals)
+		mine["goals"] = Rewards.num(mine.get("goals")) + int(r.goals)
 	mastery[str(r.animal)] = mine
 	p["mastery"] = mastery
 	var tier_after := Mastery.tier(mine)

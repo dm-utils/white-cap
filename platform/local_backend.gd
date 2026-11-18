@@ -49,7 +49,7 @@ func migrate(p: Dictionary) -> Dictionary:
 
 
 func save_profile(p: Dictionary) -> void:
-	p["version"] = int(p.get("version", 0)) + 1
+	p["version"] = Rewards.num(p.get("version")) + 1
 	p["updated_at"] = Time.get_datetime_string_from_system(true) + "Z"
 	_write_json(profile_path, p)
 

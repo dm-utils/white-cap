@@ -1235,6 +1235,11 @@ func test_reconcile() -> void:
 	check((r.looks.owned as Array).has("crab_sunset") and (r.badges as Array).has("beachcomber") and (r.avatars as Array).has("shell"), "reached look, badge and avatar are granted")
 	check(old.unlocked_animals.size() == 3 and not old.has("looks"), "reconcile does not change its input")
 	check(JSON.stringify(Rewards.reconcile(r)) == JSON.stringify(r), "reconcile is idempotent")
+	# profile numbers of any type: junk counts as 0, no script error (full sweep: tests/rewards_malformed.tscn)
+	for junk in [null, [], {}, [1], {"a": 1}, Vector2(1, 2), Color.RED]:
+		check(Rewards.num(junk) == 0 and Rewards.num(junk, 7) == 7, "Rewards.num: %s falls back" % str(junk))
+		check(Rewards.reconcile({"pearls_total": junk}).get("unlocked_animals") is Array, "reconcile with pearls_total %s" % str(junk))
+	check(Rewards.num(12) == 12 and Rewards.num(2.9) == 2 and Rewards.num("40") == 40 and Rewards.num(true) == 1, "Rewards.num converts numbers, bools, numeric strings")
 	var mid := Rewards.reconcile({"pearls_total": 200, "unlocked_animals": ["crab"]})
 	check((mid.unlocked_animals as Array).has("puffer") and not (mid.unlocked_animals as Array).has("seal") and not (mid.unlocked_animals as Array).has("star"), "200 pearls: puffer yes, seal and star not yet")
 	# Platform.load_profile reconciles without saving
