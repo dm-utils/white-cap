@@ -11,8 +11,8 @@ static func grant(profile: Dictionary, rew: Dictionary) -> void:
 		"animal":
 			_add(profile, "unlocked_animals", id)
 		"look":
-			var looks: Dictionary = profile.get("looks", {})
-			var owned: Array = looks.get("owned", [])
+			var looks := _dict(profile.get("looks"))
+			var owned := _array(looks.get("owned"))
 			if not owned.has(id):
 				owned.append(id)
 			looks["owned"] = owned
@@ -24,10 +24,19 @@ static func grant(profile: Dictionary, rew: Dictionary) -> void:
 
 
 static func _add(profile: Dictionary, key: String, id: String) -> void:
-	var list: Array = profile.get(key, [])
+	var list := _array(profile.get(key))
 	if not list.has(id):
 		list.append(id)
 	profile[key] = list
+
+
+# malformed profile fields (hand-edited, damaged) count as empty
+static func _array(v: Variant) -> Array:
+	return v if v is Array else []
+
+
+static func _dict(v: Variant) -> Dictionary:
+	return v if v is Dictionary else {}
 
 
 ## Walks a path's rewards for a pearl count going from before to after: {unlocked, next, prev_at}.
@@ -60,14 +69,14 @@ static func reconcile(profile: Dictionary) -> Dictionary:
 
 ## Looks: which look an animal wears (equipped and owned), "" = the standard colours.
 static func equipped_look(profile: Dictionary, animal: String) -> String:
-	var looks: Dictionary = profile.get("looks", {})
-	var look := str((looks.get("equipped", {}) as Dictionary).get(animal, ""))
-	return look if (looks.get("owned", []) as Array).has(look) else ""
+	var looks := _dict(profile.get("looks"))
+	var look := str(_dict(looks.get("equipped")).get(animal, ""))
+	return look if _array(looks.get("owned")).has(look) else ""
 
 
 static func equip(profile: Dictionary, animal: String, look: String) -> void:
-	var looks: Dictionary = profile.get("looks", {})
-	var eq: Dictionary = looks.get("equipped", {})
+	var looks := _dict(profile.get("looks"))
+	var eq := _dict(looks.get("equipped"))
 	if look == "":
 		eq.erase(animal)
 	else:

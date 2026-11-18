@@ -36,11 +36,12 @@ func _process(_delta: float) -> void:
 	var state := ws.get_ready_state()
 	if state == WebSocketPeer.STATE_OPEN:
 		_was_open = true
-		while ws.get_available_packet_count() > 0:
-			var d: Variant = JSON.parse_string(ws.get_packet().get_string_from_utf8())
-			if d is Dictionary:
-				message.emit(d)
-	elif state == WebSocketPeer.STATE_CLOSED and not _closed_sent:
+	# also drain in closing/closed: the lobby sends its last message right before the close frame
+	while state != WebSocketPeer.STATE_CONNECTING and ws.get_available_packet_count() > 0:
+		var d: Variant = JSON.parse_string(ws.get_packet().get_string_from_utf8())
+		if d is Dictionary:
+			message.emit(d)
+	if state == WebSocketPeer.STATE_CLOSED and not _closed_sent:
 		_closed_sent = true
 		closed.emit(ws.get_close_code())
 
