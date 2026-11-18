@@ -1,6 +1,8 @@
-# Whitecap
+# White Cap
 
 Beach animals brawl on a shrinking island while the tide comes in. Godot 4.7.2 (pinned), GDScript.
+
+Play the test version: https://play.white-cap.steefbeest.nl/ (Android test app: `/android.apk`). Promo site: https://white-cap.steefbeest.nl/.
 
 ## Run
 

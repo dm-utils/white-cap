@@ -1,4 +1,4 @@
-# Whitecap - design
+# White Cap - design
 
 Status: change round 2026-11-18 (bots, five new fighters, skins, tagline); bot damage against humans split from
 bot-vs-bot damage (ADR 008, step a3).
@@ -74,7 +74,7 @@ Key facts the developer must keep intact:
 
 ## 2. Change 1 - tagline "Survival of the driest!"
 
-Decision: ADR 007. The game stays **Whitecap**; the line under the title on the boot screen, which today reads
+Decision: ADR 007. The game keeps its name (since ADR white-kit 0008 spelled **White Cap**); the line under the title on the boot screen, which today reads
 "working title", becomes the tagline **"Survival of the driest!"**, identical in English and Dutch.
 
 | File | Change |
@@ -82,14 +82,14 @@ Decision: ADR 007. The game stays **Whitecap**; the line under the title on the 
 | `i18n/strings.csv` | Remove key `BOOT_WORKING_TITLE`; add `BOOT_TAGLINE,Survival of the driest!,Survival of the driest!` |
 | `ui/boot_screen.gd` | `sub.text = tr("BOOT_TAGLINE")` (rename the variable to `tagline`) |
 | `tools/i18n_add_nl.py` | Replace the `BOOT_WORKING_TITLE` entry by `"BOOT_TAGLINE": "Survival of the driest!"` |
-| `web/shell.html` | Under `<h1>WHITECAP</h1>` in the loader add `<p class="tag">Survival of the driest!</p>` (styled like `.msg`, white) |
+| `web/shell.html` | Under `<h1>WHITE CAP</h1>` in the loader add `<p class="tag">Survival of the driest!</p>` (styled like `.msg`, white) |
 | unchanged | `TITLE`, `project.godot` name, export names, package id |
 
 Acceptance (A-T):
-- A-T1 The boot screen shows "WHITECAP" with "Survival of the driest!" below it, in English and in Dutch (`lang=nl`).
+- A-T1 The boot screen shows "WHITE CAP" with "Survival of the driest!" below it, in English and in Dutch (`lang=nl`).
 - A-T2 No file in the repo contains `BOOT_WORKING_TITLE`, "working title" or "werktitel" (grep, excluding `.git`).
 - A-T3 `test_every_text_key_exists` and `test_every_language_complete` pass.
-- A-T4 The web loader shows the tagline under WHITECAP.
+- A-T4 The web loader shows the tagline under WHITE CAP.
 
 ---
 
@@ -1205,3 +1205,12 @@ No paid services, no new accounts.
 Follow-up work (for new cards): sim/rules version in scores before launch; derive `SIM_VERSION` automatically (golden hashes);
 promo-site text (eight animals, tagline); a mastery gold reward; updating the Dutch design documents outside the repo;
 re-run the human table of 7.2 after b1 with all free animals.
+
+## 10. Naming
+
+White-kit ADR 0008 (2026-11-18): the technical name is `white-cap` (repository, game id `[st33f] game`, i18n namespace,
+addresses `play.white-cap.steefbeest.nl` and `white-cap.steefbeest.nl`, `white-cap-my-data.json`, offline daily salt
+`white-cap-daily-`); the player-facing title is "White Cap", the logo text `WHITE CAP`, the Windows executable
+`WhiteCap.exe`, the Android debug artifact `white-cap-debug.apk`. The app id stays `com.st33f.whitecap`. Pulse still
+accepts the old game id `whitecap` from installed builds until its alias is removed. The offline daily of every date
+changed with the new salt. Older ADRs keep the old spelling.

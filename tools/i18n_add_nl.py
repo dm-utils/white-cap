@@ -5,7 +5,7 @@ import csv
 import os
 
 NL = {
-    "TITLE": "WHITECAP",
+    "TITLE": "WHITE CAP",
     "BOOT_TAGLINE": "Survival of the driest!",
     "BOOT_TAP": "Tik om te beginnen",
     "BOOT_LOADING": "Laden…",

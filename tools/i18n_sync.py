@@ -16,7 +16,7 @@ import re
 import sys
 import urllib.request
 
-NS = "whitecap"
+NS = "white-cap"
 CSV_PATH = os.path.join(os.path.dirname(__file__), "..", "i18n", "strings.csv")
 PLACEHOLDER = re.compile(r"\{[a-z_][a-z0-9_]*\}|%[sd]", re.I)
 

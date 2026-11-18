@@ -28,7 +28,7 @@ func test_tagline() -> void:
 	for loc in ["en", "nl"]:
 		TranslationServer.set_locale(loc)
 		check(tr("BOOT_TAGLINE") == "Survival of the driest!", "tagline in %s (got '%s')" % [loc, tr("BOOT_TAGLINE")])
-		check(tr("TITLE") == "WHITECAP", "title in %s" % loc)
+		check(tr("TITLE") == "WHITE CAP", "title in %s" % loc)
 		var screen: Control = load("res://ui/boot_screen.gd").new()
 		add_child(screen)
 		var texts: Array = []
@@ -38,7 +38,7 @@ func test_tagline() -> void:
 			if n is Label:
 				texts.append(n.text)
 			stack.append_array(n.get_children())
-		check(texts.has("Survival of the driest!") and texts.has("WHITECAP"), "boot screen shows title and tagline in %s %s" % [loc, str(texts)])
+		check(texts.has("Survival of the driest!") and texts.has("WHITE CAP"), "boot screen shows title and tagline in %s %s" % [loc, str(texts)])
 		check(not texts.any(func(t): return str(t).to_lower().contains("working") or str(t).to_lower().contains("werktitel")), "no working title on boot screen in %s" % loc)
 		screen.queue_free()
 	var f := FileAccess.open("res://i18n/strings.csv", FileAccess.READ)
