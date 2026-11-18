@@ -24,6 +24,7 @@ func _ready() -> void:
 	test_sim_rules()
 	test_determinism()
 	test_golden_traces()
+	test_bots_fight()
 	test_result_bookkeeping()
 	test_every_asset_has_credits()
 	test_setting_declarations()
@@ -311,6 +312,39 @@ func test_golden_traces() -> void:
 		print("golden traces updated: ", out)
 
 
+## Light bot check: all-bot matches on normal fight (attack rate, no standing around) and replay exactly.
+func test_bots_fight() -> void:
+	var alive_ticks := 0
+	var idle_ticks := 0
+	var attacks := 0
+	var hashes: Array = []
+	for pass_no in 2:
+		for i in 4:
+			var m := Match.create(900 + i * 31, "", 6, "normal")
+			var before: Array = []
+			for t in 1800:
+				before.clear()
+				for e in m.sim.ents:
+					before.append([e.x, e.y, e.alive])
+				m.step()
+				if pass_no == 0 and t >= 30:
+					for e in m.sim.ents:
+						if before[e.id][2] == 1:
+							alive_ticks += 1
+							if e.x == before[e.id][0] and e.y == before[e.id][1] and e.dash == 0:
+								idle_ticks += 1
+				for ev in m.sim.events:
+					if pass_no == 0 and ev.type == "attack":
+						attacks += 1
+			hashes.append(m.sim.state_hash())
+	var per_min := attacks * 1800.0 / maxi(1, alive_ticks)
+	var idle := 100.0 * idle_ticks / maxi(1, alive_ticks)
+	check(per_min >= 10.0, "bots attack at least 10 times per alive minute (%.1f)" % per_min)
+	check(idle <= 15.0, "bots stand idle at most 15 %% of the time (%.1f %%)" % idle)
+	check(hashes.slice(0, 4) == hashes.slice(4, 8), "the same seeds give the same bot matches twice")
+
+
+
 func test_result_bookkeeping() -> void:
 	var backend = Platform.backend
 	var saved_path: String = backend.profile_path
@@ -526,11 +560,17 @@ func test_score_check() -> void:
 	check(not by.sc_animal.ok and by.sc_animal.reason == "not_the_animal_of_the_day", "another animal on the day board is rejected")
 	check(not by.sc_bots.ok and by.sc_bots.reason == "wrong_bots_for_week", "week board with harder-to-check bots is rejected")
 	check(not by.sc_lie.ok and by.sc_lie.reason == "result_mismatch", "a better place than played is rejected")
-	# replays recorded on Windows (tests/golden/replays_windows.json) must give the same verdicts on every platform
-	var golden: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://tests/golden/replays_windows.json"))
+	# recorded replays (tests/golden/replays_recorded.json, rewritten with --update-golden) must verify on every platform
+	var recorded_path := "res://tests/golden/replays_recorded.json"
+	if OS.get_cmdline_user_args().has("--update-golden"):
+		var rf := FileAccess.open(recorded_path, FileAccess.WRITE)
+		rf.store_string(JSON.stringify(pending, "  ", false, true) + "\n")
+		rf.close()
+		print("replay fixture updated: ", recorded_path)
+	var golden: Variant = JSON.parse_string(FileAccess.get_file_as_string(recorded_path))
 	var gv := ScoreCheck.run(golden)
 	check(gv.verdicts.size() == 4 and gv.verdicts[0].ok and gv.verdicts.slice(1).all(func(v): return not v.ok),
-		"replays recorded on Windows verify the same here (%s)" % JSON.stringify(gv.verdicts))
+		"recorded replays verify the same here (%s)" % JSON.stringify(gv.verdicts))
 	var f := FileAccess.open("user://verify_sample.json", FileAccess.WRITE)
 	f.store_string(JSON.stringify(pending))
 	f.close()

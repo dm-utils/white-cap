@@ -9,7 +9,8 @@ extends RefCounted
 const TILE := 1000
 const ENT_FIELDS := ["id", "animal_idx", "x", "y", "hp", "max_hp", "radius", "speed", "alive", "charges", "reload",
 	"cooldown", "special", "slow", "slow_pct", "dash", "dash_dx", "dash_dy", "calm", "last_hit_by", "last_hit_tick",
-	"kos", "place", "died_tick", "aim", "damage_pct", "is_bot", "goal_x", "goal_y", "next_think", "strafe"]
+	"kos", "place", "died_tick", "aim", "damage_pct", "is_bot", "goal_x", "goal_y", "next_think", "strafe", "vx", "vy", "guard",
+	"target", "target_until", "next_shot", "reflex_at", "dodge_until", "dodge_dir", "strafe_until", "engaged"]
 const PROJ_FIELDS := ["owner", "x", "y", "dx", "dy", "life", "damage", "radius"]
 const CLOUD_FIELDS := ["owner", "x", "y", "radius", "life", "slow"]
 const DIVE_FIELDS := ["owner", "x", "y", "delay", "radius", "damage"]
@@ -55,7 +56,18 @@ class Ent:
 	var goal_x := 0
 	var goal_y := 0
 	var next_think := 0
-	var strafe := 1
+	var strafe := 1 # bots: circling side, -1 or +1
+	var vx := 0 # movement in the last tick (lead aim, threat prediction)
+	var vy := 0
+	var guard := 0 # ticks left of a guard special (not used yet)
+	var target := -1 # bots: committed target (entity id)
+	var target_until := 0
+	var next_shot := 0 # bots: earliest tick for the next shot (fire gap)
+	var reflex_at := 0 # bots: next threat check
+	var dodge_until := 0
+	var dodge_dir := 0
+	var strafe_until := 0
+	var engaged := 0 # bots: 1 = fights its target this plan, 0 = repositions
 	var team := -1 # Strandbal: 0 blue (defends the left goal), 1 orange; -1 every animal for itself
 	var respawn := 0 # Strandbal: ticks until a washed-away animal is back
 	var goals := 0
@@ -267,7 +279,8 @@ func alive_count() -> int:
 
 func attack_range(e: Ent) -> int:
 	var at: Dictionary = animals[e.id].attack
-	return int(at.speed) * int(at.life)
+	var turn := int(at.get("back", 0)) # boomerang: range until it turns
+	return int(at.speed) * (turn if turn > 0 else int(at.life))
 
 
 # --- the tick ---
@@ -349,6 +362,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			e.reload = 0
 
 	var t := type_of(e)
+	var x0 := e.x
+	var y0 := e.y
 	# movement
 	if e.dash > 0:
 		e.dash -= 1
@@ -376,6 +391,8 @@ func _update_ent(e: Ent, cmd: Dictionary) -> void:
 			e.x += Fx.cos_a(m) * sp / Fx.ONE
 			e.y += Fx.sin_a(m) * sp / Fx.ONE
 	_clamp(e)
+	e.vx = e.x - x0
+	e.vy = e.y - y0
 	if mode == "ball":
 		_dribble(e, int(cmd.get("m", -1)) if e.dash == 0 else -1)
 
