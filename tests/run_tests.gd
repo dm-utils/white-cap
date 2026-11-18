@@ -15,6 +15,7 @@ var _failed := 0
 func _ready() -> void:
 	test_every_script_compiles()
 	test_data_loads()
+	test_roster_data()
 	test_every_text_key_exists()
 	test_profile_roundtrip()
 	test_debug_args()
@@ -22,12 +23,14 @@ func _ready() -> void:
 	await test_remote_backend()
 	test_fx_and_rng()
 	test_sim_rules()
+	test_new_mechanics()
 	test_determinism()
 	test_golden_traces()
 	test_bots_fight()
 	test_bot_damage_split()
 	test_bots_config()
 	test_result_bookkeeping()
+	test_reconcile()
 	test_every_asset_has_credits()
 	test_setting_declarations()
 	test_every_language_complete()
@@ -80,6 +83,25 @@ func test_data_loads() -> void:
 
 ## No player-facing string inline: every tr("KEY") in code and every *_key in data must exist in strings.csv
 ## with a non-empty English text.
+## Roster data: free flags, mechanics known to the sim, texts and rigs for every animal.
+func test_roster_data() -> void:
+	var table := read_strings("res://i18n/strings.csv")
+	var ids: Array = Match.roster()
+	check(ids == ["crab", "octopus", "gull", "puffer", "otter", "seal", "hermit", "star"], "roster order is the file order (%s)" % str(ids))
+	check(Match.free_animals() == ["crab", "octopus", "gull", "otter", "hermit"], "free from the start: crab, octopus, gull, otter, hermit")
+	for a in Content.animals():
+		var id := str(a.id)
+		check(["dash", "cloud", "dive", "guard", "trap"].has(str(a.special.get("mech", ""))), "%s: special mechanic is known" % id)
+		check(table.has("ATTACK_DESC_" + str(a.attack.kind).to_upper()) and table.has("SPECIAL_DESC_" + str(a.special.kind).to_upper()), "%s: attack and special texts exist" % id)
+		check(table.has(str(a.name_key)) and FileAccess.file_exists("res://data/rigs/%s.json" % id), "%s: name text and rig exist" % id)
+		check(Content.load_json("res://data/palette.json").animals.has(id), "%s: has default colours" % id)
+	var build := Match.build_id()
+	check(RegEx.create_from_string("^[0-9]+-[0-9a-f]{8}$").search(build) != null and build == Match.build_id(), "the lobby build id is stable and fits the relay's pattern (%s)" % build)
+	check(St33f.client == null or St33f.client.pvp_lobby_url("star", "", "", build).ends_with("&v=" + build), "the lobby address carries the build id")
+	for i in 8:
+		check(Daily.animal_for(i) == ids[i], "the daily animal for seed %d is %s" % [i, ids[i]])
+
+
 func test_every_text_key_exists() -> void:
 	var table := read_strings("res://i18n/strings.csv")
 	check(table.size() > 0, "strings.csv is readable")
@@ -265,6 +287,196 @@ func test_sim_rules() -> void:
 	check(s.clouds.size() == 1, "octopus special drops an ink cloud")
 
 
+## A duel with `a` at tile (14, 12) and `b` `gap` milli-tiles south; `a` can use its special at once.
+func _duel_gap(a: String, b: String, gap: int) -> MatchSim:
+	var s := _duel(a, b)
+	s.ents[1].y = s.ents[0].y + gap
+	s.ents[0].special = 4
+	return s
+
+
+func _run(s: MatchSim, ticks: int, cmd0: Dictionary, cmd1 := {}) -> void:
+	for t in ticks:
+		s.step([cmd0 if t == 0 else {}, cmd1 if t == 0 else {}])
+
+
+## One check per new mechanic (docs/design.md 4.2): a small duel each, then snapshot/restore.
+func test_new_mechanics() -> void:
+	# spines: a ring of 8 projectiles in 8 directions
+	var s := _duel("puffer", "crab")
+	s.step([{"a": 0}, {}])
+	var dirs := {}
+	for p in s.projs:
+		dirs[Fx.atan2_a(p.dy, p.dx)] = true
+	check(s.projs.size() == 8 and dirs.size() == 8, "spines fire 8 projectiles in 8 different directions (%d, %d)" % [s.projs.size(), dirs.size()])
+
+	# jet: pushes the target along the shot
+	s = _duel_gap("seal", "crab", 3000)
+	var y1: int = s.ents[1].y
+	_run(s, 10, {"a": 1024})
+	check(s.ents[1].y - y1 == 1200 and s.ents[1].x == s.ents[0].x and s.ents[1].hp == 12000 - 1300, "a jet hit pushes the target 1200 along the shot (moved %d)" % (s.ents[1].y - y1))
+
+	# star: reverses after `back` ticks and hits on the way back
+	s = _duel_gap("star", "crab", 6000) # out of the outward reach (4200 + radii)
+	s.step([{"a": 1024}, {}])
+	var dy0: int = s.projs[0].dy
+	for t in 8:
+		s.step([{}, {}])
+	check(s.projs[0].dy == dy0 and s.projs[0].back == 1, "a boomerang flies on until `back` runs out")
+	s.step([{}, {}])
+	check(s.projs.size() == 1 and s.projs[0].dy == -dy0 and s.projs[0].back == 0, "the star reverses exactly after back ticks")
+	s.ents[1].y = s.projs[0].y - 500 # the crab steps into the return path
+	s.step([{}, {}])
+	check(s.ents[1].hp == 12000 - 1400 and s.projs.is_empty(), "the returning star hits")
+
+	# slide: intangible, refills the charges at the end
+	s = _duel_gap("otter", "crab", 3000)
+	s.ents[0].charges = 0
+	_run(s, 1, {"s": 1024, "sd": 2000})
+	check(s.ents[0].dash == 14 and s._intangible(s.ents[0]), "the slide starts and is intangible")
+	s.ents[1].x = s.ents[0].x
+	s.ents[1].y = s.ents[0].y + 200
+	var hp_before: int = s.ents[0].hp
+	var shot := MatchSim.Proj.new()
+	shot.owner = 1
+	shot.x = s.ents[0].x
+	shot.y = s.ents[0].y + 100
+	shot.dx = 0
+	shot.dy = -10
+	shot.life = 3
+	shot.damage = 1000
+	shot.radius = 300
+	s.projs.append(shot)
+	s.step([{}, {}])
+	check(s.ents[0].hp == hp_before and s.ents[1].hp == 12000, "a projectile passes through a sliding otter; the slide itself does no damage")
+	for t in 13:
+		s.step([{}, {}])
+	check(s.ents[0].dash == 0 and s.ents[0].charges == 3 and s.ents[0].reload == 0, "the slide ends with full charges")
+
+	# belly: pushes 4200 and hurts
+	s = _duel_gap("seal", "crab", 2500)
+	var by0: int = s.ents[1].y
+	_run(s, 6, {"s": 1024, "sd": 2500})
+	check(s.ents[1].y - by0 == 4200 and s.ents[1].hp == 12000 - 1400, "a belly slide pushes 4200 and deals 1400 (%d)" % (s.ents[1].y - by0))
+
+	# puff: grows to 150 %, half damage but full water damage, bounce once, back after 90 ticks
+	s = _duel_gap("puffer", "crab", 900)
+	_run(s, 1, {"s": 1024})
+	var puff: MatchSim.Ent = s.ents[0]
+	check(puff.guard == 90 and puff.radius == 690, "puff grows the radius to 150 %% (%d)" % puff.radius)
+	s.step([{}, {}]) # the bounce happens on the next tick
+	check(s.ents[1].hp == 12000 - 1500 and s.ents[1].y > 12500 + 900 + 2000, "a touching foe is bounced once (hp %d, y %d)" % [s.ents[1].hp, s.ents[1].y])
+	var hp_after: int = s.ents[1].hp
+	s.ents[1].x = puff.x
+	s.ents[1].y = puff.y + 100
+	s.step([{}, {}])
+	check(s.ents[1].hp == hp_after, "the same guard bounces a foe only once")
+	s._damage(puff, 1000, 1)
+	check(puff.hp == 14000 - 500, "puff halves foe damage")
+	s._damage(puff, 1000, -1)
+	check(puff.hp == 14000 - 500 - 1000, "puff does not soften water damage")
+	for t in 87:
+		s.step([{}, {}])
+	check(puff.guard == 1 and puff.radius == 690, "still puffed one tick before the end")
+	s.step([{}, {}])
+	check(puff.guard == 0 and puff.radius == 460, "back to the normal size after 90 ticks")
+
+	# shell: 10 %, cannot attack, not moved by a dash
+	s = _duel_gap("hermit", "crab", 2000)
+	_run(s, 1, {"s": 1024})
+	var h: MatchSim.Ent = s.ents[0]
+	s._damage(h, 2000, 1)
+	check(h.hp == 13000 - 200, "the shell takes 10 %% of the damage (%d)" % h.hp)
+	var n := s.projs.size()
+	s.step([{"a": 1024}, {}])
+	check(s.projs.size() == n and h.charges == 3, "a hermit in its shell cannot attack")
+	s.ents[1].special = 4
+	s.ents[1].x = h.x
+	s.ents[1].y = h.y + 2000
+	var hx: int = h.x
+	var hy: int = h.y
+	_run(s, 6, {}, {"s": 3072, "sd": 2000})
+	check(h.x == hx and h.y == hy and h.hp < 13000 - 200, "a dash hurts the shelled hermit but does not move it (%d, %d)" % [h.x - hx, h.y - hy])
+	var sp0: float = h.speed
+	var x0: int = h.x
+	s.step([{"m": 0}, {}])
+	check(h.x - x0 == sp0 * 108 / 100 * 30 / 100 or h.x - x0 == int(sp0 * 108 / 100) * 30 / 100, "the shell slows movement to 30 %% (%d)" % (h.x - x0))
+
+	# trap: arm delay, trigger circle, fuse, at most 2
+	s = _duel_gap("star", "crab", 6000)
+	_run(s, 1, {"s": 0})
+	check(s.traps.size() == 1 and s.traps[0].x == s.ents[0].x and s.traps[0].arm == 14, "an arm trap appears under the starfish")
+	var tr: MatchSim.Trap = s.traps[0]
+	s.ents[1].x = tr.x
+	s.ents[1].y = tr.y
+	for t in 13:
+		s.step([{}, {}])
+	check(s.traps.size() == 1 and s.ents[1].hp == 12000, "the trap does not go off before it is armed")
+	s.step([{}, {}])
+	check(s.traps.is_empty() and s.ents[1].hp == 12000 - 3200 and s.events.any(func(ev): return ev.type == "trap" and ev.id == 0),
+		"a foe on the armed trap sets it off (hp %d)" % s.ents[1].hp)
+	s = _duel_gap("star", "crab", 9000)
+	_run(s, 1, {"s": 0})
+	for t in 148:
+		s.step([{}, {}])
+	check(s.traps.size() == 1 and s.ents[1].hp == 12000, "a trap nobody steps on is still there just before the fuse")
+	s.step([{}, {}])
+	check(s.traps.is_empty(), "the fuse sets the trap off by itself")
+	s = _duel_gap("star", "crab", 9000)
+	var first_x: int = s.ents[0].x
+	for i in 3:
+		s.ents[0].special = 4
+		s.ents[0].x = first_x + i * 2000
+		s.step([{"s": 0}, {}])
+	check(s.traps.size() == 2 and s.traps[0].x == first_x + 2000 and s.traps[1].x == first_x + 4000, "at most 2 traps per owner, the oldest goes first")
+
+	# everything survives snapshot and restore
+	s = _duel_gap("star", "puffer", 1500)
+	_run(s, 1, {"s": 0, "a": 1024}, {"s": 0})
+	s.ents[1].special = 4
+	s.step([{}, {"s": 0}])
+	var snap := s.snapshot()
+	var hash0 := s.state_hash()
+	for t in 40:
+		s.step([{}, {}])
+	var hash1 := s.state_hash()
+	var s2 := _duel_gap("star", "puffer", 1500)
+	s2.restore(snap)
+	check(s2.state_hash() == hash0, "snapshot and restore keep traps, guard and radius")
+	for t in 40:
+		s2.step([{}, {}])
+	check(s2.state_hash() == hash1, "restored state continues identically")
+
+	# damage against a human uses human_damage_pct (guard bounce and trap)
+	s = _duel_gap("puffer", "crab", 900)
+	s.ents[0].is_bot = 1
+	s.ents[0].human_damage_pct = 200
+	s.ents[0].damage_pct = 40
+	_run(s, 2, {"s": 1024})
+	check(s.ents[1].hp == 12000 - 1500 * 2, "guard bounce against a human uses human_damage_pct (%d)" % s.ents[1].hp)
+	s = _duel_gap("star", "crab", 6000)
+	s.ents[0].is_bot = 1
+	s.ents[0].human_damage_pct = 200
+	s.ents[0].damage_pct = 40
+	_run(s, 1, {"s": 0})
+	s.ents[1].x = s.traps[0].x
+	s.ents[1].y = s.traps[0].y
+	for t in 16:
+		s.step([{}, {}])
+	check(s.ents[1].hp == 12000 - 3200 * 2, "a trap against a human uses human_damage_pct (%d)" % s.ents[1].hp)
+	s = _duel_gap("star", "crab", 6000)
+	s.ents[0].is_bot = 1
+	s.ents[0].human_damage_pct = 200
+	s.ents[0].damage_pct = 40
+	s.ents[1].is_bot = 1
+	_run(s, 1, {"s": 0})
+	s.ents[1].x = s.traps[0].x
+	s.ents[1].y = s.traps[0].y
+	for t in 16:
+		s.step([{}, {}])
+	check(s.ents[1].hp == 12000 - 3200 * 40 / 100, "a trap against a bot uses damage_pct (%d)" % s.ents[1].hp)
+
+
 func test_determinism() -> void:
 	var a := Match.create(777, "", 6, "easy")
 	var b := Match.create(777, "", 6, "easy")
@@ -402,10 +614,10 @@ func test_bot_damage_split() -> void:
 	check(o.sim.ents[1].is_bot == 1 and o.sim.ents[1].damage_pct == d.x and o.sim.ents[1].human_damage_pct == d.y, "a player who leaves gets the bot values")
 	# Strandbal: ball keys, with fallback to the normal ones
 	var c := {"damage_pct": 20, "human_damage_pct": 80, "ball_damage_pct": 50, "ball_human_damage_pct": 60}
-	check(BotBrain.damage_pcts(c, "gull", "ball") == Vector2i(50, 60) and BotBrain.damage_pcts(c, "gull", "") == Vector2i(20, 80), "ball mode uses the ball keys")
+	check(BotBrain.damage_pcts(c, "unstyled", "ball") == Vector2i(50, 60) and BotBrain.damage_pcts(c, "unstyled", "") == Vector2i(20, 80), "ball mode uses the ball keys")
 	c.erase("ball_damage_pct")
 	c.erase("ball_human_damage_pct")
-	check(BotBrain.damage_pcts(c, "gull", "ball") == Vector2i(20, 80), "ball keys fall back to the normal-match values")
+	check(BotBrain.damage_pcts(c, "unstyled", "ball") == Vector2i(20, 80), "ball keys fall back to the normal-match values")
 	# snapshot keeps the new field
 	var s := MatchSim.new(7, ["crab", "gull"])
 	s.ents[1].human_damage_pct = 123
@@ -437,8 +649,11 @@ func test_result_bookkeeping() -> void:
 	check(int(o.after) == 145 and o.unlocked.size() == 1 and str(o.unlocked[0].id) == "shell", "crossing 100 unlocks the first reward")
 	for i in 3:
 		o = RS.apply_result({"place": 1, "kos": 0, "animal": "crab"})
+		if i == 0:
+			check(int(o.after) == 205 and o.unlocked.size() == 1 and str(o.unlocked[0].id) == "puffer", "crossing 150 reports the pufferfish as new")
 	var p: Dictionary = Platform.load_profile()
-	check((p.unlocked_animals as Array).has("puffer") and int(p.pearls_total) == 325, "crossing 250 adds the pufferfish to the unlocked animals")
+	check((p.unlocked_animals as Array).has("puffer") and int(p.pearls_total) == 325, "the pufferfish is in the unlocked animals after 150")
+	check(not (p.unlocked_animals as Array).has("seal") and (p.unlocked_animals as Array).has("otter") and (p.unlocked_animals as Array).has("hermit"), "seal still locked, otter and hermit free")
 	check(int(p.stats.matches) == 5 and int(p.stats.wins) == 4 and int(p.mastery.gull.matches) == 2, "stats and mastery counted")
 	# Strandbal: a draw (counts as 2nd place) with 2 goals and 1 KO
 	o = RS.apply_result({"mode": "ball", "place": 2, "outcome": "draw", "kos": 1, "goals": 2, "animal": "crab"})
@@ -452,7 +667,7 @@ func test_result_bookkeeping() -> void:
 
 ## Every slice animal builds from its rig; part names the code binds to exist; looks build too.
 func test_cutouts_build() -> void:
-	for id in Match.SLICE_ANIMALS:
+	for id in Match.roster():
 		var c := Cutout.new()
 		c.build(id)
 		check(c.joints.has("body") and c.joints.size() >= 7, "%s builds from its rig (%d parts)" % [id, c.joints.size()])
@@ -460,6 +675,11 @@ func test_cutouts_build() -> void:
 			var sprite: Sprite2D = j.get_child(0)
 			check(sprite.texture != null, "%s/%s has a texture" % [id, j.name])
 		c.trigger("attack")
+		c._process(0.1)
+		check(c.joints.size() <= 12, "%s has at most 12 parts" % id)
+		c.guard_kind = "puff"
+		c._process(0.1)
+		c.guard_kind = "shell"
 		c._process(0.1)
 		c.free()
 	for look in [["crab", "crab_sunset"], ["octopus", "octopus_midnight"]]:
@@ -508,6 +728,10 @@ func test_sfx() -> void:
 	var sounds: Dictionary = spec.sounds
 	var wanted := ["tap", "hit", "ko", "snack", "boom", "tide", "win", "splash", "dash", "ink", "dive", "kick", "whistle", "cheer"]
 	wanted.append_array(preload("res://view/match_view.gd").ATTACK_SOUNDS.values())
+	wanted.append_array(preload("res://view/match_view.gd").SPECIAL_SOUNDS.values())
+	for a in Content.animals(): # every attack and special kind has its sound mapped
+		check(preload("res://view/match_view.gd").ATTACK_SOUNDS.has(str(a.attack.kind)) and preload("res://view/match_view.gd").SPECIAL_SOUNDS.has(str(a.special.kind)),
+			"%s: attack and special sounds are mapped" % a.id)
 	var missing := wanted.filter(func(n): return not sounds.has(n))
 	check(missing.is_empty(), "every sound the game plays is in sfx.json (missing: %s)" % ", ".join(missing))
 	check(float(spec.peak_dbfs) <= -3.0, "effects are normalised to a peak <= -3 dBFS")
@@ -526,7 +750,7 @@ func test_daily() -> void:
 	var s := Daily.local_seed("2026-11-10")
 	check(s == LOCAL_SEED_2026_11_10, "local seed is the same on every platform (got %d)" % s)
 	check(s != Daily.local_seed("2026-11-11") and s >= 1 and s <= 2000000000, "local seed changes daily, in range")
-	check(Match.SLICE_ANIMALS.has(Daily.animal_for(s)) and Daily.animal_for(s) == Daily.animal_for(s), "the animal follows from the seed")
+	check(Match.roster().has(Daily.animal_for(s)) and Daily.animal_for(s) == Daily.animal_for(s), "the animal follows from the seed")
 	var win := Daily.score({"place": 1, "kos": 2, "survived_s": 100})
 	var last := Daily.score({"place": 6, "kos": 0, "survived_s": 30})
 	check(win == 1000 + 600 + 200 and last == 100 + 60, "score = place + knockouts + seconds (got %d, %d)" % [win, last])
@@ -622,7 +846,7 @@ func test_score_check() -> void:
 	var r := m.human_result()
 	var claimed := {"place": r.place, "kos": r.kos, "survived_s": r.survived_s}
 	var rep := Replay.encode(m.replay)
-	var other: String = Match.SLICE_ANIMALS[(Match.SLICE_ANIMALS.find(animal) + 1) % Match.SLICE_ANIMALS.size()]
+	var other: String = Match.roster()[(Match.roster().find(animal) + 1) % Match.roster().size()]
 	var lie := claimed.duplicate()
 	lie.place = 1 if int(claimed.place) != 1 else 2
 	var pending := {"scores": [
@@ -815,7 +1039,11 @@ func test_rewards_season_collection() -> void:
 
 	var screen = preload("res://ui/collection_screen.gd").new()
 	var all: Array = screen.entries()
-	check(all.size() == 8 and all.filter(func(e): return not e.built).size() == 5, "collection: 3 animals to play, 5 coming soon")
+	check(all.size() == 8 and all.filter(func(e): return not e.built).is_empty(), "collection: all 8 animals can play")
+	var at := {}
+	for e in all:
+		at[e.id] = e.at
+	check(at.puffer == 150 and at.seal == 350 and at.star == 550 and at.otter == 0 and at.hermit == 0 and at.crab == 0, "collection: pearls needed per animal from the path (%s)" % str(at))
 	var crab_looks: Array = screen.looks_for("crab")
 	check(crab_looks.size() == 2 and crab_looks.any(func(l): return l.id == "crab_storm" and str(l.source).contains("350")), "crab looks with where to get them")
 	var box := VBoxContainer.new()
@@ -824,8 +1052,12 @@ func test_rewards_season_collection() -> void:
 	check(box.get_child_count() >= 8, "detail: name, kind, attack, special, mastery, looks, buttons (%d)" % box.get_child_count())
 	for c in box.get_children():
 		c.free()
-	screen.fill_detail(box, "otter", shade)
+	screen.fill_detail(box, "shark", shade)
 	check((box.get_child(1) as Label).text == tr("COLLECTION_SOON_LONG"), "an animal that isn't built yet says so")
+	for c in box.get_children():
+		c.free()
+	screen.fill_detail(box, "star", shade)
+	check(box.get_child_count() >= 8 and (box.get_child(2) as Label).text.contains(tr("ATTACK_DESC_STAR")), "detail of a new animal shows its attack text")
 	for c in box.get_children():
 		c.free()
 	box.free()
@@ -842,7 +1074,7 @@ func test_rollback() -> void:
 		var seed_value := 90210
 		var animals: Array = []
 		for i in n:
-			animals.append(Match.SLICE_ANIMALS[i % 3])
+			animals.append(Match.roster()[i % Match.roster().size()])
 		var clients: Array = []
 		for i in n:
 			clients.append(Rollback.new(Match.create_online(seed_value, animals, 6, "normal", mode), i))
@@ -988,6 +1220,36 @@ func test_setting_declarations() -> void:
 
 
 ## Asset policy: no file under assets/ without a credits row (source, author, licence, date).
+## Free animals and Treasure Path rewards already reached are granted when a profile loads (docs/design.md 4.4).
+func test_reconcile() -> void:
+	var fresh: Dictionary = LocalBackend.new().default_profile()
+	check(fresh.unlocked_animals == ["crab", "octopus", "gull", "otter", "hermit"], "a new profile has the five free animals (%s)" % str(fresh.unlocked_animals))
+	check(Rewards.reconcile(fresh).unlocked_animals == fresh.unlocked_animals, "a new profile gets nothing extra")
+	var old := {"pearls_total": 600, "unlocked_animals": ["crab", "octopus", "gull"], "selected_animal": "crab"}
+	var r := Rewards.reconcile(old)
+	var want := ["crab", "octopus", "gull", "otter", "hermit", "puffer", "seal", "star"]
+	want.sort()
+	var got: Array = (r.unlocked_animals as Array).duplicate()
+	got.sort()
+	check(got == want, "600 pearls and the old three animals: all eight now (%s)" % str(got))
+	check((r.looks.owned as Array).has("crab_sunset") and (r.badges as Array).has("beachcomber") and (r.avatars as Array).has("shell"), "reached look, badge and avatar are granted")
+	check(old.unlocked_animals.size() == 3 and not old.has("looks"), "reconcile does not change its input")
+	check(JSON.stringify(Rewards.reconcile(r)) == JSON.stringify(r), "reconcile is idempotent")
+	var mid := Rewards.reconcile({"pearls_total": 200, "unlocked_animals": ["crab"]})
+	check((mid.unlocked_animals as Array).has("puffer") and not (mid.unlocked_animals as Array).has("seal") and not (mid.unlocked_animals as Array).has("star"), "200 pearls: puffer yes, seal and star not yet")
+	# Platform.load_profile reconciles without saving
+	var backend = Platform.backend
+	var saved_path: String = backend.profile_path
+	backend.profile_path = "user://test_reconcile_profile.json"
+	backend._write_json(backend.profile_path, backend.migrate(old.duplicate(true)))
+	var before: String = FileAccess.get_file_as_string(backend.profile_path)
+	var loaded: Dictionary = Platform.load_profile()
+	check((loaded.unlocked_animals as Array).has("star") and (loaded.unlocked_animals as Array).has("otter"), "Platform.load_profile returns the reconciled profile")
+	check(FileAccess.get_file_as_string(backend.profile_path) == before, "loading does not save by itself")
+	DirAccess.remove_absolute(backend.profile_path)
+	backend.profile_path = saved_path
+
+
 func test_every_asset_has_credits() -> void:
 	var credits := FileAccess.get_file_as_string("res://assets/credits.csv")
 	# a row may name a file, or a folder ending in "/" for generated sets (e.g. cutout parts)
