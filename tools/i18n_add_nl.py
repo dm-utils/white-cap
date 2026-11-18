@@ -1,4 +1,4 @@
-"""One-off: adds the Dutch column to i18n/strings.csv (Claude's translations = drafts until reviewed in phase 5a).
+"""One-off: adds the Dutch column to i18n/strings.csv (translations are drafts until reviewed in phase 5a).
 Usage: python -I tools/i18n_add_nl.py
 """
 import csv
