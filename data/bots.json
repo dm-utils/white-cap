@@ -67,37 +67,43 @@
       "range_pct": 65,
       "min_pct": 30,
       "flee_hp_pct": 30,
-      "damage_pct": 170
+      "damage_pct": 145
     },
     "gull": {
       "range_pct": 65,
       "min_pct": 40,
-      "flee_hp_pct": 35
+      "flee_hp_pct": 35,
+      "damage_pct": 80
     },
     "puffer": {
       "range_pct": 50,
       "min_pct": 0,
-      "flee_hp_pct": 20
+      "flee_hp_pct": 20,
+      "damage_pct": 230
     },
     "otter": {
       "range_pct": 70,
       "min_pct": 40,
-      "flee_hp_pct": 40
+      "flee_hp_pct": 40,
+      "damage_pct": 160
     },
     "seal": {
       "range_pct": 60,
       "min_pct": 0,
-      "flee_hp_pct": 25
+      "flee_hp_pct": 25,
+      "damage_pct": 260
     },
     "hermit": {
       "range_pct": 55,
       "min_pct": 0,
-      "flee_hp_pct": 20
+      "flee_hp_pct": 20,
+      "damage_pct": 160
     },
     "star": {
       "range_pct": 70,
       "min_pct": 25,
-      "flee_hp_pct": 30
+      "flee_hp_pct": 30,
+      "damage_pct": 220
     }
   },
   "default_style": {
