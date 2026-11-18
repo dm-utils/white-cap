@@ -82,7 +82,7 @@ static func run(matches: int, level: String, base_seed: int, human: bool, profil
 	var step_us := 0
 	for i in matches:
 		var seed_value := base_seed + i * 7919
-		var m := Match.create(seed_value, Match.SLICE_ANIMALS[i % Match.SLICE_ANIMALS.size()] if human else "", 6, level)
+		var m := Match.create(seed_value, Match.free_animals()[i % Match.free_animals().size()] if human else "", 6, level)
 		var sim := m.sim
 		var hits_needed := int(sim.rules.attack.special_hits)
 		var credit := int(sim.rules.knockout_credit_ticks)

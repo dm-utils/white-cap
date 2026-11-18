@@ -64,7 +64,7 @@ Key facts the developer must keep intact:
 - **Progress.** `ui/result_screen.gd::apply_result` adds pearls and walks `path.json` with `Rewards.walk`/`grant`;
   season pearls in parallel (`platform/season.gd`); mastery counters per animal (`platform/mastery.gd`). Looks:
   `profile.looks.owned` and `profile.looks.equipped[animal]`. Only the player wears a look in a match; bots never.
-- **Bots pick animals** from `Match.SLICE_ANIMALS` (`crab`, `octopus`, `gull`); the same constant gates the daily
+- **Bots pick animals** from `Match.roster()` (all animals of `data/animals.json`, since step b1); the same list gates the daily
   animal, the replay check and the match fallback.
 - **Tests.** `tests/run_tests.tscn` (headless, CI, 300 s timeout), `tests/balance.tscn` (all-bot balance),
   `tests/ball_balance.tscn`, golden traces in `tests/golden/traces.json`, recorded replays in
@@ -999,6 +999,56 @@ Gull beak rename, slots, accessory library, palette looks, `data/looks.json`, `.
 accessory joint, mastery looks (data, `apply_result`, reconcile point 3), path look rows (4.4 rows "c"), collection
 sources, text keys. Acceptance: A-S1..A-S9.
 
+### 6.2 Result of steps b1-b3 (branch `feature/new-fighters`, 2026-11-18)
+
+Built as specified in 4.1-4.5, with these deviations:
+- Sim: the guard bounce and the trap arm timer start counting the tick after activation (activation happens at the end of
+  `_update_ent`); a trap created at tick T has `arm == arm_ticks - 1` after that tick and can fire from tick T +
+  `arm_ticks`. A dash with `damage == 0` and `push == 0` skips its hit loop. `_shot(kind, fallback)` reads the ball table.
+- Bots: styles for the new animals already existed; `damage_pct` was added per style (below). Threat scan: boomerang
+  return leg, traps (armed trigger within 1 tile, or fuse <= 10 and inside the blast), dashes only when they harm (the
+  otter slide does not). Ring attacks fire at the nearest foe in range. Ball specials as in 3.7; the defender specials
+  (`shell`, `arm`) use the defend branch.
+- Hermit "hides" by hiding every sprite except `shell` and the eyes (the eyes drop into the shell); scaling the parts
+  was not possible because they are children of `body`.
+- Zoo: 8 states (idle, walk, swim, attack, hit, ko, win, special), 5 rows per page, 3 pages (`page=0..2`);
+  `tools/web_smoke.py` photographs all three.
+- Reconcile covers points 1 and 2 only; point 3 (mastery looks) belongs to step c. `Platform.load_profile` returns the
+  reconciled profile without saving.
+- Online (card #008, ADR 009): relay allowlist of 8, lobby queue per build id (`Match.build_id()`), friends rooms reject a
+  mismatch. Deployed to the dev environment on 2026-11-18.
+- Tuning (rule +-25 %): puffer `speed` 108 -> 135 (+25 %, Strandbal otherwise left it at 29-36 % wins). Strandbal shot
+  table: spines 280 -> 350, star 420 -> 520, puff 700 -> 850, long 460 -> 400, shell 520 -> 430. Bot style `damage_pct`
+  (bot-vs-bot only; humans unchanged): crab 115, octopus 170 -> 145, gull (new) 80, puffer 200, otter 140, seal 260,
+  hermit 160, star 230. All other animal values are as in 4.1.
+
+Measured with `tests/bot_metrics.tscn` (normal, all-bot, seeds 1 and 2 with 200 matches each, 400 entries pooled):
+
+| Animal | win % per entry | note |
+|---|---|---|
+| crab | 12.2 | |
+| octopus | 15.8 | |
+| gull | 22.4 | |
+| puffer | 12.1 | |
+| otter | 17.8 | |
+| seal | 17.2 | |
+| hermit | 16.1 | |
+| star | 19.2 | |
+
+All eight within 10-24 %. Match duration normal avg 167 / 149 s (target 90-180), `duration_s_p10` 64 / 58 s (target >= 75:
+missed; a3 had 58 s, the short matches are the opening brawl). Easy (200 matches, seed 1): avg 137 s, p10 45 s, win %
+crab 13.7, gull 13.3, hermit 15.7, octopus 12.0, otter 10.3, puffer 38.5, seal 20.3, star 9.6 (puffer too strong on easy
+because the ring hits poorly aimed bots; no per-animal easy target exists; open point). Hard (200 matches): avg 153 s,
+p10 53 s; win % octopus 29.6, crab 20.3, otter 17.1, hermit 15.7, puffer 14.2, gull 12.8, star 12.5, seal 10.1 (measured
+before the final puffer/otter/star style values).
+Human runs (100 matches, test player rotating over the 5 free animals, seed 1; place / win % / early out %):
+skilled 1.01 / 99 / 1, 2.27 / 46 / 49, 4.08 / 8 / 81 (easy, normal, hard); casual 2.30 / 46 / 47, 5.24 / 4 / 96,
+5.55 / 0 / 99. The ladder rises for both profiles; skilled normal now wins 46 % (target 15-40) and place 2.27 (2.3-3.3),
+so the open card #011 (normal after the owner's playtest) still decides; early-out caps were already missed in a3.
+Strandbal normal (120 matches, seeds 1 and 2): goals 2.6-3.1, 0-0 0-5 %, blue 49-56 %, KOs 3.4-4.5; animals between 33
+and 64 % per seed (n about 75 each, SD 6 points): puffer 40-42 % after tuning, gull, otter and octopus at the top of the
+band; seed 1 within goals, seed 2 just outside through one animal.
+
 Rough size: a1 small, a2 medium-large, a3 medium, b1 large, b2 large (art), b3 small, c medium.
 
 ---
@@ -1143,12 +1193,12 @@ No paid services, no new accounts.
 | Bot CPU cost on web/phone | Frame drops | Threat scan capped at 24 projectiles; budget 2x baseline; perf overlay check on the web build |
 | Balance of 8 animals and new mechanics | Some animal dominates | Data-only tuning (+-25 %), 400-match runs; tester reports per-animal win % |
 | Recorded replays and pending leaderboard scores of older builds no longer verify | Old scores rejected | No real players yet (sign-in waits on the mail route); a sim version field before launch (follow-up, ADR 003) |
-| Online: relay still allows only crab/octopus/gull | New animals silently become crab online | Follow-up in st33f-engine `apps/pvp/src/env.ts`; dev deploy needs owner approval |
-| Online: two different builds in one room | Desync | Follow-up: build/sim version in the lobby URL, separate queues per version |
+| Online: relay allowlist | New animals silently became crab online | Done (card #008): eight animals allowed; deployed to dev; acc and prod by hand later |
+| Online: two different builds in one room | Desync | Done (ADR 009): build id in the lobby URL, queue per build, friends rooms reject a mismatch; `SIM_VERSION` must be bumped for code-only sim changes |
 | Accessories vs the "never change silhouette" rule | Readability | Size cap (25 % of body box), inside the animal space, never cyan/coral; only the player wears a look |
 | Type mix 3 land / 4 water / 1 flyer | Tide favours water animals more often | Watch per-type win % in the metrics; future flyer candidate |
 | `crab_sunset` base `#FF6F61` is close to coral | Existing readability issue | Not in scope; noted for the art review |
 
-Follow-up work (for new cards): relay allowlist + lobby version check; sim/rules version in scores before launch;
+Follow-up work (for new cards): sim/rules version in scores before launch; derive `SIM_VERSION` automatically (golden hashes);
 promo-site text (eight animals, tagline); a mastery gold reward; updating the Dutch design documents outside the repo;
 re-run the human table of 7.2 after b1 with all free animals.

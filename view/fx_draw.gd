@@ -104,6 +104,51 @@ static func dive_marker(ci: CanvasItem, pos: Vector2, radius: float, progress: f
 	ci.draw_circle(pos, 6.0 + 18.0 * progress, Color(0, 0, 0, 0.25 * progress))
 
 
+## The starfish' arm on the ground: a small five-point star in the owner's colour that blinks faster as the fuse
+## runs out, with a thin dashed blast ring once armed. `fuse_left` is 0..1.
+static func trap_marker(ci: CanvasItem, pos: Vector2, radius: float, armed: bool, fuse_left: float, col: Color, t: float) -> void:
+	var rate := lerpf(14.0, 3.0, clampf(fuse_left, 0.0, 1.0))
+	var lit := not armed or fmod(t * rate, 2.0) < 1.4
+	ci.draw_set_transform(pos, 0.0, Vector2(1.0, 0.7))
+	if armed:
+		var dashes := 16
+		for i in dashes:
+			var a := i * TAU / dashes
+			ci.draw_arc(Vector2.ZERO, radius, a, a + TAU / dashes * 0.4, 5, Color(col, 0.45), 3.0)
+	var pts := PackedVector2Array()
+	for i in 10:
+		var r := 15.0 if i % 2 == 0 else 6.5
+		var a := -PI / 2.0 + i * PI / 5.0
+		pts.append(Vector2(cos(a), sin(a)) * r)
+	ci.draw_colored_polygon(pts, Color(col, 0.95 if lit else 0.35))
+	pts.append(pts[0])
+	ci.draw_polyline(pts, Color(INK, 0.9 if lit else 0.4), 3.0)
+	ci.draw_set_transform(Vector2.ZERO)
+
+
+## A thrown starfish: five points, spinning.
+static func star_shot(ci: CanvasItem, pos: Vector2, radius: float, spin: float, outline: Color, fill: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 10:
+		var r := radius if i % 2 == 0 else radius * 0.45
+		var a := spin + i * PI / 5.0
+		pts.append(pos + Vector2(cos(a), sin(a)) * r)
+	ci.draw_colored_polygon(pts, fill)
+	pts.append(pts[0])
+	ci.draw_polyline(pts, outline, 3.5)
+
+
+## A water jet: an elongated drop along its flight direction.
+static func jet_shot(ci: CanvasItem, pos: Vector2, dir: Vector2, radius: float, outline: Color, fill: Color) -> void:
+	var f := dir.normalized() if dir != Vector2.ZERO else Vector2.RIGHT
+	var n := Vector2(-f.y, f.x)
+	var pts := PackedVector2Array([pos + f * radius * 1.7, pos + n * radius * 0.8 - f * radius * 0.3,
+		pos - f * radius * 1.1, pos - n * radius * 0.8 - f * radius * 0.3])
+	ci.draw_colored_polygon(pts, fill)
+	pts.append(pts[0])
+	ci.draw_polyline(pts, outline, 3.5)
+
+
 ## Ink blindness: everything dark except a small hole around the player.
 static func ink_blind(ci: CanvasItem, pos: Vector2, hole: float, strength: float, ink: Color) -> void:
 	var width := 4000.0

@@ -1,7 +1,7 @@
 extends Node
 ## Bot balance runner: many all-bot matches headless, then win rate per animal and match length.
 ##   godot --headless --path . res://tests/balance.tscn -- --matches=200 --level=easy --seed=1
-## Goals (phase 3): no animal above 45 % or below 22 % wins; matches 2-3 minutes.
+## Goals: with 8 animals every one wins 10-24 % of its entries (fair = 16.7 %); matches 2-3 minutes (docs/design.md 7.2).
 
 
 func _ready() -> void:
@@ -38,7 +38,7 @@ func _ready() -> void:
 		var share := 100.0 * int(wins.get(animal, 0)) / matches
 		print("balance: %-8s entries %4d  wins %4d  win%%/entry %5.1f  share of wins %5.1f  KOs/entry %.2f" % [
 			animal, entries[animal], wins.get(animal, 0), per_entry, share, float(kos.get(animal, 0)) / int(entries[animal])])
-		if share > 45.0 or share < 22.0:
+		if per_entry > 24.0 or per_entry < 10.0:
 			ok = false
-	print("balance: %s" % ("within goals" if ok else "OUTSIDE goals (share of wins must be 22-45 %)"))
+	print("balance: %s" % ("within goals" if ok else "OUTSIDE goals (win % per entry must be 10-24)"))
 	get_tree().quit(0)

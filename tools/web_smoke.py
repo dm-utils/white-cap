@@ -236,7 +236,7 @@ def main() -> int:
 
         # Dutch: texts are ~30 % longer, so the layouts must still fit (checked by eye in the contact sheet)
         for scene, extra, name in [("menu", "&lang=nl", "web-menu-nl"), ("settings", "&lang=nl", "web-settings-nl"),
-                                   ("match", "&lang=nl&seed=123&god=1", "web-match-nl"), ("zoo", "", "web-zoo"),
+                                   ("match", "&lang=nl&seed=123&god=1", "web-match-nl"), ("zoo", "", "web-zoo"), ("zoo", "&page=1", "web-zoo-1"), ("zoo", "&page=2", "web-zoo-2"),
                                    ("fx", "", "web-fx"), ("leaderboard", "&lang=nl", "web-leaderboard-nl"),
                                    ("leaderboard", "&lang=nl&dialog=friends", "web-friends-nl"),
                                    ("settings", "&lang=nl&dialog=privacy", "web-privacy-nl"),

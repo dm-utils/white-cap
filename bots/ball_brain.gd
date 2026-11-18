@@ -43,6 +43,8 @@ static func think(sim: MatchSim, e: MatchSim.Ent, cfg: Dictionary) -> Dictionary
 				var away := absi(Fx.angle_diff(to_ball, Fx.atan2_a(sim.by - own.y, sim.bx - own.x))) < 1024
 				if away and ball_d < sim.attack_range(e) * 80 / 100:
 					cmd.a = posmod(to_ball + sim.rng.between(-err, err), Fx.ANGLES)
+				if e.special >= int(rules.attack.special_hits):
+					_defend_special(sim, e, cmd, own, ball_d)
 			_:
 				# ahead of the ball, off to one side, ready for a pass
 				var side := 3000 * (1 if e.id % 4 < 2 else -1)
@@ -108,6 +110,19 @@ static func _special(sim: MatchSim, e: MatchSim.Ent, cmd: Dictionary, goal: Vect
 		"dash":
 			if aligned and ball_d < 3500:
 				cmd.s = to_ball
+		"belly":
+			if aligned and ball_d < 4500:
+				cmd.s = to_ball
+		"slide":
+			# reposition behind the ball when far from it
+			var gp := _behind(sim, e, goal, int(sim.rules.ball.radius))
+			if Fx.dist(gp.x - e.x, gp.y - e.y) > 5000:
+				cmd.s = Fx.atan2_a(gp.y - e.y, gp.x - e.x)
+				cmd["sd"] = Fx.dist(gp.x - e.x, gp.y - e.y)
+		"puff":
+			var foe := _nearest_foe(sim, e)
+			if ball_d < 2500 and foe != null and Fx.dist(foe.x - e.x, foe.y - e.y) < 2500:
+				cmd.s = Fx.atan2_a(foe.y - e.y, foe.x - e.x)
 		"dive":
 			# land just behind the ball: the blast sends it towards the goal
 			var dx := goal.x - sim.bx
@@ -123,6 +138,20 @@ static func _special(sim: MatchSim, e: MatchSim.Ent, cmd: Dictionary, goal: Vect
 			var foe := _nearest_foe(sim, e)
 			if foe != null and Fx.dist(foe.x - sim.bx, foe.y - sim.by) < 4000:
 				cmd.s = Fx.atan2_a(foe.y - e.y, foe.x - e.x)
+
+
+## Defender specials: the hermit becomes a wall, the starfish leaves an arm at the goal mouth.
+static func _defend_special(sim: MatchSim, e: MatchSim.Ent, cmd: Dictionary, own: Vector2i, ball_d: int) -> void:
+	match str(sim.animals[e.id].special.kind):
+		"shell":
+			var coming: bool = sim.bvx * (own.x - sim.bx) + sim.bvy * (own.y - sim.by) > 0
+			if coming and ball_d < 4000:
+				cmd.s = 0
+		"arm":
+			var foe := _nearest_foe(sim, e)
+			if foe != null and Fx.dist(e.x - own.x, e.y - own.y) < 5000 and Fx.dist(foe.x - sim.bx, foe.y - sim.by) < 6000 \
+					and Fx.dist(sim.bx - own.x, sim.by - own.y) < 8000:
+				cmd.s = Fx.atan2_a(e.y - foe.y, e.x - foe.x)
 
 
 ## Without a ball shot to take: sometimes hit the nearest opponent (more often when it is near the ball).

@@ -92,8 +92,9 @@ func is_signed_in() -> bool:
 	return backend.is_signed_in()
 
 
+## The saved profile with everything it is owed (free animals, path rewards already reached); see Rewards.reconcile.
 func load_profile() -> Dictionary:
-	return backend.load_profile()
+	return Rewards.reconcile(backend.load_profile())
 
 
 func save_profile(profile: Dictionary) -> void:

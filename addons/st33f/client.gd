@@ -231,9 +231,25 @@ func delete_feedback() -> Dictionary:
 # --- online matches (pvp relay) ---
 
 ## WebSocket address of the online lobby for this game (the relay groups players, then sends a room).
-func pvp_lobby_url(animal: String, mode := "") -> String:
+## Lobby WebSocket; room = a friends room code (4 characters, see pvp_room_code) or "" for the open lobby;
+## version = the build id (1-32 of A-Z a-z 0-9 . _ -): players with another one are never put in the same match.
+func pvp_lobby_url(animal: String, mode := "", room := "", version := "") -> String:
 	var url := "%s/v1/games/%s/pvp?animal=%s" % [_ws(base_for("pvp")), game, animal.uri_encode()]
-	return url + ("&mode=" + mode.uri_encode() if mode != "" else "")
+	url += "&mode=" + mode.uri_encode() if mode != "" else ""
+	url += "&v=" + version.uri_encode() if version != "" else ""
+	return url + ("&room=" + room if room != "" else "")
+
+
+## A new friends room code: 4 characters without look-alikes (no 0/O, 1/I/L).
+static func pvp_room_code(rng: RandomNumberGenerator = null) -> String:
+	const ALPHABET := "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+	var r := rng if rng != null else RandomNumberGenerator.new()
+	if rng == null:
+		r.randomize()
+	var out := ""
+	for i in 4:
+		out += ALPHABET[r.randi_range(0, ALPHABET.length() - 1)]
+	return out
 
 
 ## WebSocket address of a match room (seat and key come from the lobby's "match" message).

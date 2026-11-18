@@ -45,6 +45,19 @@ static func walk(rewards: Array, before: int, after: int) -> Dictionary:
 	return {"unlocked": unlocked, "next": next, "prev_at": prev_at}
 
 
+## The profile it should be: free animals unlocked and every Treasure Path reward up to the pearls collected
+## granted (animals that moved earlier on the path, new rewards). Pure and idempotent; the next save persists it.
+static func reconcile(profile: Dictionary) -> Dictionary:
+	var p := profile.duplicate(true)
+	for id in Match.free_animals():
+		_add(p, "unlocked_animals", str(id))
+	var pearls := int(p.get("pearls_total", 0))
+	for rew in Content.load_json("res://data/path.json").rewards:
+		if int(rew.at) <= pearls:
+			grant(p, rew)
+	return p
+
+
 ## Looks: which look an animal wears (equipped and owned), "" = the standard colours.
 static func equipped_look(profile: Dictionary, animal: String) -> String:
 	var looks: Dictionary = profile.get("looks", {})

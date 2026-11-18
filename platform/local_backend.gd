@@ -24,7 +24,7 @@ func default_profile() -> Dictionary:
 		"version": 0,
 		"updated_at": "",
 		"pearls_total": 0,
-		"unlocked_animals": ["crab", "octopus", "gull"],
+		"unlocked_animals": Match.free_animals(),
 		"selected_animal": "octopus",
 		"achievements": {},
 		"stats": {"matches": 0, "wins": 0, "knockouts": 0},

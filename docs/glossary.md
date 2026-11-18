@@ -10,6 +10,7 @@
 | Bot damage | A bot's damage multiplier against other bots (`damage_pct`, level x style). Tuned for bot-vs-bot match length. |
 | Bot level | Difficulty preset in `data/bots.json` `levels`: easy, normal, hard. |
 | Bot style | Per-animal bot parameters in `data/bots.json` `styles`: preferred range, back-off distance, flee threshold, optional damage factors. |
+| Build id | `Match.build_id()`: `SIM_VERSION` plus a hash of the sim data files. Sent to the online lobby; players with different ids are never matched together (ADR 009). |
 | Calm start | The first `calm_start_ticks` of a match in which nobody attacks. |
 | Charges | Attack ammunition (3), recharging one per `reload_ticks`. |
 | Committed target | The foe a bot keeps fighting until `target_until`, unless it dies. |

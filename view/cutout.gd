@@ -19,6 +19,8 @@ var size_px := 90.0:
 		size_px = v
 		_root_scale()
 
+## Set by the match view each frame from the sim's guard state: "" | "puff" | "shell".
+var guard_kind := ""
 var joints := {} # part name -> Node2D
 var _rest := {} # part name -> Vector2 rest position
 var _body: Node2D
@@ -126,6 +128,7 @@ func _pose() -> void:
 		j.position = _rest[n]
 		j.rotation = 0.0
 		j.scale = Vector2.ONE
+		(j.get_child(0) as Node2D).visible = true
 	_body.position = Vector2.ZERO
 	_body.rotation = 0.0
 	_body.scale = Vector2.ONE
@@ -167,6 +170,13 @@ func _pose() -> void:
 		if animal_id == "octopus":
 			for t in ["limb_fl", "limb_fr"]:
 				joints[t].rotation += 0.5 * k * (1.0 if t == "limb_fr" else -1.0)
+		if animal_id == "star": # the throw: all five arms spin
+			for t in ["limb_top", "limb_fl", "limb_fr", "limb_bl", "limb_br"]:
+				joints[t].rotation += k * 1.2
+		if animal_id == "puffer":
+			_body.scale *= 1.1
+
+	_pose_guard()
 
 	# hit: flash and flinch
 	if _hit > 0.0:
@@ -183,6 +193,28 @@ func _pose() -> void:
 		_body.rotation = k * TAU * 1.5
 		_body.scale *= Vector2.ONE * (1.0 - 0.6 * k)
 		modulate.a = 1.0 - k
+
+
+## Guard specials: the puffer swells (spikes wobble), the hermit hides in its shell and only the eyes peek out.
+func _pose_guard() -> void:
+	match guard_kind:
+		"puff":
+			_body.scale *= 1.5
+			_body.rotation += sin(_t * 22.0) * 0.03
+			for e in ["eye_l", "eye_r"]:
+				if joints.has(e):
+					joints[e].scale = Vector2(1.15, 1.15)
+		"shell":
+			if not joints.has("shell"):
+				return
+			for n in joints:
+				if n != "shell" and n != "eye_l" and n != "eye_r":
+					(joints[n].get_child(0) as Node2D).visible = false
+			for e in ["eye_l", "eye_r"]:
+				if joints.has(e):
+					joints[e].position += Vector2(-6.0, 22.0)
+					joints[e].scale = Vector2(0.75, 0.75)
+			_body.scale *= Vector2(1.0, 0.96)
 
 
 func _draw_water() -> void:

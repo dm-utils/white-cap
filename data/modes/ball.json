@@ -23,7 +23,7 @@
       "friction": { "dry": 955, "shallow": 900, "deep": 975 },
       "deep_drift": 6,
       "dribble_pct": 140,
-      "shot": { "snip": 700, "fan": 300, "long": 460, "dash": 860, "dive": 760 },
+      "shot": { "snip": 700, "fan": 300, "long": 400, "spines": 350, "shell": 430, "jet": 640, "poke": 620, "star": 520, "dash": 860, "belly": 900, "slide": 500, "dive": 760, "puff": 850, "arm": 760 },
       "respawn_ticks": 90,
       "damage_pct": 65,
       "kickoff_ticks": 60,

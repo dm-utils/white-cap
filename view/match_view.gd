@@ -68,7 +68,7 @@ func _ready() -> void:
 		seed_value = int(_plan.seed)
 		animal = str(_plan.animal)
 		bots = str(_plan.bots)
-	if not Match.SLICE_ANIMALS.has(animal):
+	if not Match.roster().has(animal):
 		animal = "octopus"
 	m = Match.create(seed_value, animal, 6, bots if mode == "" or Boot.args.has("bots") else "normal", mode)
 	if _plan.has("online"):
@@ -316,6 +316,11 @@ func _handle_events() -> void:
 				var wet := m.sim.depth_at(int(at.x), int(at.y)) >= 1
 				fx.splash(at * PX, 2.0, Color.WHITE if wet else Color("C9A26B"))
 				_sound("boom", at * PX)
+			"trap":
+				_fx.append({"kind": "boom", "pos": Vector2(ev.x, ev.y) * PX, "t": 0.0})
+				var spot := Vector2(ev.x, ev.y)
+				fx.splash(spot * PX, 1.6, Color.WHITE if m.sim.depth_at(int(spot.x), int(spot.y)) >= 1 else Color("C9A26B"))
+				_sound("boom", spot * PX)
 			"tide_warning":
 				_say(tr("HUD_TIDE_WARNING"), 2.0)
 				Sfx.play("tide")
@@ -423,6 +428,10 @@ func _draw_board() -> void:
 	for key in _dive_delay.keys():
 		if not live.has(key):
 			_dive_delay.erase(key)
+	var fuse_total := float(_special_value("arm", "fuse_ticks", 150))
+	for tp in sim.traps:
+		FxDraw.trap_marker(board, Vector2(tp.x, tp.y) * PX, tp.radius * PX, tp.arm == 0, float(tp.fuse) / fuse_total,
+			ME if tp.owner == m.human else FOE, _t)
 	fx.draw_rings(board)
 	# shadows and team rings under the animals (styleguide: cyan = you, coral = others)
 	for e in m.sim.ents:
@@ -447,8 +456,16 @@ func _draw_overlay() -> void:
 	var sim := m.sim
 	for p in sim.projs:
 		var pos := Vector2(p.x, p.y) * PX
-		overlay.draw_circle(pos, p.radius * PX * 0.55 + 4.0, INK)
-		overlay.draw_circle(pos, p.radius * PX * 0.55 + 1.0, ME if p.owner == m.human else FOE)
+		var col := ME if p.owner == m.human else FOE
+		var r: float = p.radius * PX * 0.55
+		match str(sim.animals[p.owner].attack.kind):
+			"star":
+				FxDraw.star_shot(overlay, pos, r + 7.0, _t * 12.0, INK, col)
+			"jet":
+				FxDraw.jet_shot(overlay, pos, Vector2(p.dx, p.dy), r + 2.0, INK, col)
+			_:
+				overlay.draw_circle(pos, r + 4.0, INK)
+				overlay.draw_circle(pos, r + 1.0, col)
 	for f in _fx:
 		var k: float = f.t / 0.7
 		match str(f.kind):
@@ -479,6 +496,8 @@ func _draw_bars(e: MatchSim.Ent) -> void:
 	var lift := 22.0 if str(m.sim.animals[e.id].type) == "flyer" else 0.0
 	var w := 56.0
 	var top := p + Vector2(-w / 2, -86 - lift)
+	if e.guard > 0:
+		overlay.draw_rect(Rect2(top - Vector2(5, 5), Vector2(w + 10, 17)), Color(1, 1, 1, 0.9), false, 2.0)
 	overlay.draw_rect(Rect2(top - Vector2(2, 2), Vector2(w + 4, 11)), INK)
 	var f := clampf(float(e.hp) / float(e.max_hp), 0.0, 1.0)
 	var col: Color = FOE if mode == "" else _team[e.team]
@@ -514,6 +533,8 @@ func _update_cutouts() -> void:
 				_wake[e.id] = 0.28
 				fx.ripple(_pos_px(e) + Vector2(0, 18))
 		c.facing = -1.0 if Fx.cos_a(e.aim) < 0 else 1.0
+		var sp: Dictionary = m.sim.animals[e.id].special
+		c.guard_kind = str(sp.kind) if e.guard > 0 and str(sp.get("mech", "")) == "guard" else ""
 		if not e.alive and c.is_gone():
 			c.visible = false
 
@@ -656,12 +677,15 @@ func _sound(sound: String, pos: Vector2, extra_db := 0.0) -> void:
 		Sfx.play(sound, db)
 
 
-const ATTACK_SOUNDS := {"snip": "snip", "fan": "plop", "long": "peck"}
+const ATTACK_SOUNDS := {"snip": "snip", "fan": "plop", "long": "peck", "spines": "prick", "shell": "toss", "jet": "squirt",
+	"poke": "poke", "star": "whirl"}
+const SPECIAL_SOUNDS := {"dash": "dash", "ink": "ink", "dive": "dive", "puff": "inflate", "slide": "whoosh", "belly": "slap",
+	"shell": "clack", "arm": "pop"}
 
 
 func _attack_sound(id: int, type: String, kind: String) -> String:
 	if type == "special":
-		return {"dash": "dash", "ink": "ink", "dive": "dive"}.get(kind, "hit")
+		return SPECIAL_SOUNDS.get(kind, "hit")
 	var animal: Dictionary = m.sim.animals[id]
 	return ATTACK_SOUNDS.get(str(animal.get("attack", {}).get("kind", "")), "hit")
 

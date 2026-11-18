@@ -2,28 +2,28 @@
   {
     "seed": 1,
     "ticks": 1800,
-    "hash": 1491969626,
-    "alive": 3,
+    "hash": 3834014363,
+    "alive": 2,
     "level": 4
   },
   {
     "seed": 2026,
     "ticks": 3600,
-    "hash": 405916268,
-    "alive": 3,
-    "level": 6
+    "hash": 2226029091,
+    "alive": 1,
+    "level": 3
   },
   {
     "seed": 31337,
     "ticks": 6000,
-    "hash": 4279806104,
+    "hash": 4285774510,
     "alive": 1,
     "level": 4
   },
   {
     "seed": 4242,
     "ticks": 3000,
-    "hash": 2050972825,
+    "hash": 640481734,
     "alive": 6,
     "level": 5
   }

@@ -3,7 +3,7 @@ extends RefCounted
 ## One match = MatchSim + bots + presentation data (names). The view and the tests drive it the same way:
 ## step(human_command) once per tick. With human_animal "" every entrant is a bot (tests, balance runs).
 
-const SLICE_ANIMALS := ["crab", "octopus", "gull"]
+static var _roster: Array = []
 
 var sim: MatchSim
 var human := -1
@@ -13,6 +13,33 @@ var replay: Array = [] # human commands per tick (compact), for replays and serv
 var humans: Array = [] # online: the player slots (the rest are bots)
 
 var _bot_cfg: Dictionary
+
+
+## Ids of all animals in data/animals.json order (the roster); bots and the daily pick from it.
+static func roster() -> Array:
+	if _roster.is_empty():
+		for a in Content.animals():
+			_roster.append(str(a.id))
+	return _roster
+
+
+## Bump when sim, bot or rules code changes what a match looks like but no data file does. Part of build_id().
+const SIM_VERSION := 1
+
+
+## What the online lobby compares: clients with another id never share a match (their sims would drift apart).
+## SIM_VERSION plus a hash of the data files that drive the sim and the bots.
+static func build_id() -> String:
+	var h := 2166136261
+	for f in ["animals", "rules", "bots", "modes/ball"]:
+		for b in FileAccess.get_file_as_string("res://data/%s.json" % f).replace("\r", "").to_utf8_buffer():
+			h = ((h ^ b) * 16777619) & 0xFFFFFFFF
+	return "%d-%08x" % [SIM_VERSION, h]
+
+
+## Animals available from the start (`free` in data/animals.json), in roster order.
+static func free_animals() -> Array:
+	return Content.animals().filter(func(a): return bool(a.get("free", false))).map(func(a): return str(a.id))
 
 
 ## mode "" = the normal match (last one dry wins); "ball" = Strandbal, 3 against 3 (phase 14).
@@ -27,7 +54,7 @@ static func create(seed_value: int, human_animal: String, players := 6, level :=
 		entrants.append(human_animal)
 		m.human = 0
 	while entrants.size() < players:
-		entrants.append(SLICE_ANIMALS[pick.range_i(SLICE_ANIMALS.size())])
+		entrants.append(roster()[pick.range_i(roster().size())])
 	m.sim = MatchSim.new(seed_value, entrants, mode)
 	var bots: Dictionary = Content.load_json("res://data/bots.json")
 	for e in m.sim.ents:
@@ -63,7 +90,7 @@ static func create_online(seed_value: int, animals: Array, players := 6, level :
 	var pick := SimRng.new(seed_value ^ 0x5BD1E995)
 	var entrants: Array = animals.duplicate()
 	while entrants.size() < players:
-		entrants.append(SLICE_ANIMALS[pick.range_i(SLICE_ANIMALS.size())])
+		entrants.append(roster()[pick.range_i(roster().size())])
 	m.sim = MatchSim.new(seed_value, entrants, mode)
 	m.humans = []
 	for i in animals.size():
