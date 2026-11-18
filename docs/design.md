@@ -388,7 +388,7 @@ Additions in step a3:
 - New per-run keys with `--human=1`: `human_win_pct` (% of matches with place 1), `human_early_out_pct` (% of matches in
   which the test player is out with `died_tick < 1350`, i.e. before 45 s, and place > 1), `human_survived_s_median`
   (median of `(died_tick if died_tick >= 0 else final tick) / 30`).
-- New all-bot key: `duration_s_p10` (nearest rank: sort the durations ascending, take index `ceil(n / 10) - 1`).
+- New all-bot metric: `duration_s_p10` (nearest rank: sort the durations ascending, take index `ceil(n / 10) - 1`).
 - `tests/ball_balance.gd` gains `kos_per_match` (all `ko` events / matches) in its output and check.
 
 ### 3.9 Damage against humans (ADR 008, step a3)
@@ -906,7 +906,7 @@ Same branch (`feature/livelier-bots`), after a2. Order matters: first prove that
    `human_damage_pct = damage_pct` per level and style `human_damage_pct = damage_pct` for crab (115) and octopus (170),
    no ball keys. Run `bot_metrics` (all-bot, all three levels, 200 matches) and `--human=1 --profile=legacy` (100
    matches): every metric value must equal the a2 numbers in 6.1 (A-B7). Do not commit these temporary values.
-2. **Test player profiles** (3.9.4) and the metrics tool additions (3.8: `--profile`, `--ladder`, the new keys,
+2. **Test player profiles** (3.9.4) and the metrics tool additions (3.8: `--profile`, `--ladder`, the new output fields,
    `duration_s_p10`; `kos_per_match` in `ball_balance`).
 3. **Tune.** Set the starting values of 3.3 (remove the temporary style `human_damage_pct` entries) and tune only
    `human_damage_pct` per level (range 30-200, strictly rising easy < normal < hard) until the human targets of 7.2 hold.
