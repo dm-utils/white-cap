@@ -54,10 +54,15 @@ func _ready() -> void:
 static func entries() -> Array:
 	var out: Array = []
 	var built := {}
+	var at := {} # animal id -> pearls on the Treasure Path (0 = free)
+	var path_rewards: Array = Content.load_json("res://data/path.json").rewards
+	for rew in path_rewards:
+		if str(rew.kind) == "animal":
+			at[str(rew.id)] = int(rew.at)
 	for a in Content.animals():
 		built[str(a.id)] = true
-		out.append({"id": str(a.id), "name_key": str(a.name_key), "built": true, "at": 0})
-	for rew in Content.load_json("res://data/path.json").rewards:
+		out.append({"id": str(a.id), "name_key": str(a.name_key), "built": true, "at": int(at.get(str(a.id), 0))})
+	for rew in path_rewards:
 		if str(rew.kind) == "animal" and not built.has(str(rew.id)):
 			out.append({"id": str(rew.id), "name_key": str(rew.name_key), "built": false, "at": int(rew.at)})
 	return out
