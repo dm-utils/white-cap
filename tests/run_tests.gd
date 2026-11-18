@@ -25,6 +25,8 @@ func _ready() -> void:
 	test_determinism()
 	test_golden_traces()
 	test_bots_fight()
+	test_bot_damage_split()
+	test_bots_config()
 	test_result_bookkeeping()
 	test_every_asset_has_credits()
 	test_setting_declarations()
@@ -342,6 +344,83 @@ func test_bots_fight() -> void:
 	check(per_min >= 10.0, "bots attack at least 10 times per alive minute (%.1f)" % per_min)
 	check(idle <= 15.0, "bots stand idle at most 15 %% of the time (%.1f %%)" % idle)
 	check(hashes.slice(0, 4) == hashes.slice(4, 8), "the same seeds give the same bot matches twice")
+
+
+
+## Bot damage against bots and against humans (docs/design.md 3.9): chosen on impact by the victim.
+func _hp_loss(attacker: Dictionary, victim_bot: int, a_animal: String, v_animal: String, cmd: Dictionary, ticks: int) -> int:
+	var s := _duel(a_animal, v_animal)
+	s.ents[1].y = s.ents[0].y + 2000
+	s.ents[0].is_bot = int(attacker.bot)
+	s.ents[0].damage_pct = int(attacker.dmg)
+	s.ents[0].human_damage_pct = int(attacker.hdmg)
+	s.ents[1].is_bot = victim_bot
+	if cmd.has("s"):
+		s.ents[0].special = int(s.rules.attack.special_hits)
+	var hp := int(s.ents[1].hp)
+	for t in ticks:
+		s.step([cmd if t == 0 else {}, {}])
+	return hp - int(s.ents[1].hp)
+
+
+func test_bot_damage_split() -> void:
+	var m := Match.create(5, "crab", 6, "hard")
+	var cfg := BotBrain.level_config("hard")
+	check(m.sim.ents[0].damage_pct == 100 and m.sim.ents[0].human_damage_pct == 100, "the human keeps 100 / 100")
+	var ok := true
+	for e in m.sim.ents.slice(1):
+		var d := BotBrain.damage_pcts(cfg, str(m.sim.animals[e.id].id), "")
+		ok = ok and e.is_bot == 1 and e.damage_pct == d.x and e.human_damage_pct == d.y
+	check(ok, "every bot has the damage values of its level and style")
+	var bot := {"bot": 1, "dmg": 40, "hdmg": 150}
+	var human := {"bot": 0, "dmg": 100, "hdmg": 100}
+	var shot := {"a": 1024}
+	check(_hp_loss(bot, 0, "crab", "crab", shot, 6) == 2400 * 150 / 100, "a bot shot takes base x human_damage_pct from a human")
+	check(_hp_loss(bot, 1, "crab", "crab", shot, 6) == 2400 * 40 / 100, "a bot shot takes base x damage_pct from a bot")
+	check(_hp_loss(human, 1, "crab", "crab", shot, 6) == 2400, "a human shot takes the base damage")
+	var dash := {"s": 1024, "sd": 2000}
+	check(_hp_loss(bot, 0, "crab", "crab", dash, 10) == 2600 * 150 / 100, "a bot dash takes human_damage_pct from a human")
+	check(_hp_loss(bot, 1, "crab", "crab", dash, 10) == 2600 * 40 / 100, "a bot dash takes damage_pct from a bot")
+	check(_hp_loss(bot, 0, "gull", "crab", dash, 14) == 3600 * 150 / 100, "a bot dive takes human_damage_pct from a human")
+	check(_hp_loss(bot, 1, "gull", "crab", dash, 14) == 3600 * 40 / 100, "a bot dive takes damage_pct from a bot")
+	# water does not scale
+	var loss := []
+	for level in ["easy", "hard"]:
+		var w := Match.create(5, "crab", 6, level)
+		w.sim.ents[0].x = 4500
+		w.sim.ents[0].y = 4500
+		var hp := int(w.sim.ents[0].hp)
+		for t in 5:
+			w.sim.step([{}, {}, {}, {}, {}, {}])
+		loss.append(hp - int(w.sim.ents[0].hp))
+	check(loss[0] == loss[1] and loss[0] > 0, "water damage on a human is the same on easy and hard (%s)" % str(loss))
+	# online: two humans stay at 100, a leaver gets bot values
+	var o := Match.create_online(5, ["crab", "gull"], 6, "normal")
+	check(o.sim.ents[0].human_damage_pct == 100 and o.sim.ents[1].damage_pct == 100, "online humans keep 100 / 100")
+	o.to_bot(1)
+	var d := BotBrain.damage_pcts(BotBrain.level_config("normal"), "gull", "")
+	check(o.sim.ents[1].is_bot == 1 and o.sim.ents[1].damage_pct == d.x and o.sim.ents[1].human_damage_pct == d.y, "a player who leaves gets the bot values")
+	# Strandbal: ball keys, with fallback to the normal ones
+	var c := {"damage_pct": 20, "human_damage_pct": 80, "ball_damage_pct": 50, "ball_human_damage_pct": 60}
+	check(BotBrain.damage_pcts(c, "gull", "ball") == Vector2i(50, 60) and BotBrain.damage_pcts(c, "gull", "") == Vector2i(20, 80), "ball mode uses the ball keys")
+	c.erase("ball_damage_pct")
+	c.erase("ball_human_damage_pct")
+	check(BotBrain.damage_pcts(c, "gull", "ball") == Vector2i(20, 80), "ball keys fall back to the normal-match values")
+	# snapshot keeps the new field
+	var s := MatchSim.new(7, ["crab", "gull"])
+	s.ents[1].human_damage_pct = 123
+	var snap := s.snapshot()
+	var h := s.state_hash()
+	s.ents[1].human_damage_pct = 5
+	s.restore(snap)
+	check(s.ents[1].human_damage_pct == 123 and s.state_hash() == h, "snapshot and restore keep human_damage_pct")
+
+
+func test_bots_config() -> void:
+	var v := []
+	for level in ["easy", "normal", "hard"]:
+		v.append(int(BotBrain.level_config(level).human_damage_pct))
+	check(v.all(func(x): return x >= 30 and x <= 200) and v[0] < v[1] and v[1] < v[2], "human_damage_pct is in 30..200 and rises easy < normal < hard (%s)" % str(v))
 
 
 

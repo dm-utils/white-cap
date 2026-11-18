@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 3,
   "levels": {
     "easy": {
       "think_ticks": 12,
@@ -15,7 +15,9 @@
       "samples": 10,
       "look_tiles": 7,
       "damage_pct": 50,
-      "max_on_target": 2
+      "max_on_target": 2,
+      "human_damage_pct": 95,
+      "ball_damage_pct": 85
     },
     "normal": {
       "think_ticks": 8,
@@ -31,7 +33,9 @@
       "samples": 12,
       "look_tiles": 8,
       "damage_pct": 22,
-      "max_on_target": 2
+      "max_on_target": 2,
+      "human_damage_pct": 175,
+      "ball_damage_pct": 75
     },
     "hard": {
       "think_ticks": 5,
@@ -47,7 +51,9 @@
       "samples": 14,
       "look_tiles": 9,
       "damage_pct": 22,
-      "max_on_target": 3
+      "max_on_target": 3,
+      "human_damage_pct": 180,
+      "ball_damage_pct": 50
     }
   },
   "styles": {

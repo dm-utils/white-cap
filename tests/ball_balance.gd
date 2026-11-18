@@ -3,7 +3,7 @@ extends Node
 ## Strandbal balance runner (phase 14): many all-bot matches headless, then goals, sides and animals.
 ##   godot --headless --path . res://tests/ball_balance.tscn -- --matches=200 --level=normal --seed=1
 ## Goals: 2-8 goals per match on average, under 15 % end 0-0, blue and orange each win 45-55 % of decided
-## matches, every animal wins 40-60 % of its decided entries. Exit code 1 when outside (CI runs a light version).
+## matches, every animal wins 40-60 % of its decided entries, 1-5 KOs per match. Exit code 1 when outside (CI runs a light version).
 
 
 func _ready() -> void:
@@ -52,9 +52,10 @@ static func run(matches: int, level: String, base_seed: int) -> Dictionary:
 	var avg := float(goals) / maxi(1, matches)
 	var nil_pct := 100.0 * nil / maxi(1, matches)
 	lines.append("ball balance: %d matches, level %s, %.1f s wall, %.2f ms per 1000 ticks" % [matches, level, ms / 1000.0, ms * 1000.0 / maxf(1.0, total_ticks)])
-	lines.append("ball balance: goals per match %.2f, 0-0 %.0f %%, golden goal %d, match length avg %.0f s, KOs per match %.1f" % [
-		avg, nil_pct, golden, total_ticks / 30.0 / maxi(1, matches), float(kos) / maxi(1, matches)])
-	ok = ok and avg >= 2.0 and avg <= 8.0 and nil_pct < 15.0
+	var kos_per_match := float(kos) / maxi(1, matches)
+	lines.append("ball balance: goals per match %.2f, 0-0 %.0f %%, golden goal %d, match length avg %.0f s, KOs per match %.2f" % [
+		avg, nil_pct, golden, total_ticks / 30.0 / maxi(1, matches), kos_per_match])
+	ok = ok and avg >= 2.0 and avg <= 8.0 and nil_pct < 15.0 and kos_per_match >= 1.0 and kos_per_match <= 5.0
 	var blue: float = 100.0 * team_wins[0] / maxi(1, decided)
 	lines.append("ball balance: decided %d, blue wins %.0f %%, orange %.0f %%" % [decided, blue, 100.0 - blue if decided > 0 else 0.0])
 	ok = ok and blue >= 45.0 and blue <= 55.0
@@ -63,4 +64,4 @@ static func run(matches: int, level: String, base_seed: int) -> Dictionary:
 		lines.append("ball balance: %-8s decided entries %4d  wins %5.1f %%" % [animal, entries[animal], pct])
 		ok = ok and pct >= 40.0 and pct <= 60.0
 	lines.append("ball balance: %s" % ("within goals" if ok else "OUTSIDE goals"))
-	return {"ok": ok, "lines": lines, "avg_goals": avg, "nil_pct": nil_pct, "blue_pct": blue}
+	return {"ok": ok, "lines": lines, "avg_goals": avg, "nil_pct": nil_pct, "kos_per_match": kos_per_match, "blue_pct": blue}

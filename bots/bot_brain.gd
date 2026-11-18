@@ -30,10 +30,17 @@ static func level_config(name: String) -> Dictionary:
 	return _levels.get(name, _levels.easy)
 
 
-## Bot damage: the level's percentage, scaled per animal by the style (balance knob for bots only).
-static func damage_pct(cfg: Dictionary, animal: String) -> int:
+## Bot damage multipliers as (against bots, against humans), level value scaled per animal by the style
+## (docs/design.md 3.9). Strandbal uses the ball_* keys when present.
+static func damage_pcts(cfg: Dictionary, animal: String, mode: String) -> Vector2i:
 	_load()
-	return int(cfg.damage_pct) * int(_styles.get(animal, _default_style).get("damage_pct", 100)) / 100
+	var style: Dictionary = _styles.get(animal, _default_style)
+	var vs_bot := int(cfg.damage_pct)
+	var vs_human := int(cfg.get("human_damage_pct", vs_bot))
+	if mode == "ball":
+		vs_bot = int(cfg.get("ball_damage_pct", vs_bot))
+		vs_human = int(cfg.get("ball_human_damage_pct", vs_human))
+	return Vector2i(vs_bot * int(style.get("damage_pct", 100)) / 100, vs_human * int(style.get("human_damage_pct", 100)) / 100)
 
 
 static func style_of(sim: MatchSim, e: MatchSim.Ent) -> Dictionary:
