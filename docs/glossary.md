@@ -43,7 +43,7 @@
 | Special | The second ability; ready after 4 projectile hits. |
 | Steady | During the hermit's shell: cannot be pushed. |
 | Strandbal | The 3-against-3 beach ball mode (`mode = "ball"`). |
-| Tagline | "Survival of the driest!", shown under the name Whitecap. |
+| Tagline | "Survival of the driest!", shown under the name White Cap. |
 | Test player | Scripted stand-in for a human in tests (`tests/test_player.gd`). Profiles: `legacy` (perfect-aim turret, golden data), `casual`, `skilled` (difficulty measurement). |
 | Threat | Something about to hit a bot: a projectile on course, a dive or trap blast about to land, a dash heading at it. |
 | Tide | The water level that rises in phases and shrinks the island; deep water hurts. |

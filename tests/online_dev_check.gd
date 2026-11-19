@@ -56,7 +56,7 @@ func _poll_info() -> void:
 		var c := OnlineClient.new()
 		add_child(c)
 		c.message.connect(_on_room.bind(i))
-		c.open("%s/v1/games/whitecap/pvp/room/%s?slot=%d&key=%s" % [base, msg.room, int(msg.slot), msg.key])
+		c.open("%s/v1/games/white-cap/pvp/room/%s?slot=%d&key=%s" % [base, msg.room, int(msg.slot), msg.key])
 		room.append(c)
 		var m := Match.create_online(int(msg.seed), msg.animals, 6, "normal", str(msg.get("mode", "")))
 		m.human = int(msg.slot)
